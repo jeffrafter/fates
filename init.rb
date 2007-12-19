@@ -1,0 +1,10 @@
+$:.unshift "lib"
+$:.unshift "ext/ftsearch"
+require 'ftsearch/fragment_writer'
+require 'ftsearch/field_infos'
+require 'ftsearch/suffix_array_reader'
+require 'ftsearch/fulltext_reader'
+require 'ftsearch/document_map_reader'
+require 'ftsearch/analysis/analyzer'
+require 'ftsearch/analysis/simple_identifier_analyzer'
+require 'ftsearch/analysis/whitespace_analyzer'
