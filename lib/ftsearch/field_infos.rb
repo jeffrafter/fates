@@ -3,6 +3,22 @@
 require 'ftsearch/analysis/whitespace_analyzer'
 
 module FTSearch # :nodoc:
+
+  class Comparator
+  
+    def self.exclusive_compare(left, right)
+      left < right
+    end
+  
+    def self.inclusive_compare(left, right)
+      left <= right
+    end
+  
+    def self.prepare(field) 
+      field.downcase
+    end
+    
+  end
   
   # Store field information by adding field definitions using +add_field+. The
   # options for each field will be stored in the internal field hash. Using the

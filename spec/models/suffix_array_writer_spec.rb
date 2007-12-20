@@ -37,10 +37,10 @@ describe :suffix_array_writer do
     @f = FTSearch::FulltextWriter.new
     @f.add_document(1, {:sample_field => 'suffixB suffixA'}, @field_map, @field_infos, @w, @m)
     @f.finish!
-    @w.instance_variable_get('@suffixes').should == [12, 20]
+    @w.instance_variable_get('@suffixes').should == [16, 24]
     @w.finish!(@f.data)
-    @w.instance_variable_get('@suffixes').should == [20, 12]
-    @w.data.should == "\002\000\000\000 \000\000\000\b\000\000\000suffixA\000\000\000\000\000\000\000\000\000\000\000\000\000\024\000\000\000\f\000\000\000"
+    @w.instance_variable_get('@suffixes').should == [24, 16]
+    @w.data.should == "\002\000\000\000 \000\000\000\b\000\000\000suffixA\000\000\000\000\000\000\000\000\000\000\000\000\000\030\000\000\000\020\000\000\000"
   end
 
   it "should merge the suffixes from a suffix array reader" do
@@ -57,7 +57,7 @@ describe :suffix_array_writer do
     io.seek(0, 0)
     @w2 = FTSearch::SuffixArrayWriter.new
     @w2.merge(FTSearch::SuffixArrayReader.new(@f, @m, :io => io))
-    @w2.instance_variable_get('@suffixes').should == [20, 12]
+    @w2.instance_variable_get('@suffixes').should == [24, 16]
     @w2.finish!(@f.data)
     @w2.data.should == @w.data
   end

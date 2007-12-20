@@ -49,11 +49,12 @@ module FTSearch # :nodoc:
     def add_document(id, field_hash, field_mapping, field_infos, suffix_array_writer, map_writer)
       write_document_header(id, field_hash, field_mapping, field_infos)
       map_writer.add_document(id, field_hash[:uri])
+      primary_key = field_hash[:primary_key] || 0
       field_hash.each_pair do |field_name, data|
         if field_id = field_mapping[field_name]
           field_info = field_infos[field_name]
           if field_info[:stored]
-            suffix_offset, segment_offset = store_field(id, field_id, data)
+            suffix_offset, segment_offset = store_field(primary_key, field_id, data)
             if analyzer = field_info[:analyzer]
               suffix_array_writer.add_suffixes(analyzer, data, suffix_offset)
             end
@@ -89,16 +90,16 @@ module FTSearch # :nodoc:
     end
 
     # Write the field to the current input/output stream. Each field will be 
-    # stored with a header that contains the id, and size (as longs) followed
+    # stored with a header that contains the doc_id, field_id, and size (as longs) followed
     # by the data for the field (the actual text or value) and a trailing \0.
     # This function returns an array containing the offset to the start of 
     # the data, and the offset of the field header in the input/output stream.
     def store_field(doc_id, field_id, data)
-      @io.write [field_id, data.size].pack("V2") # pack the array as two longs
+      @io.write [doc_id, field_id, data.size].pack("V3") # pack the array as three longs
       offset = @io.pos
       @io.write data
       @io.write "\0"
-      [offset, offset - 8] # start of data, start of header
+      [offset, offset - 12] # start of data, start of header (header size is 12)
     end
   end
 end  # FTSearch

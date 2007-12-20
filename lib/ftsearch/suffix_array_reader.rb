@@ -92,35 +92,50 @@ module FTSearch # :nodoc:
     end
 
     def count_hits(term)
-      suffix_index = binary_search(term, 0, @suffixes.size)
+      k = $KCODE
+      $KCODE = ''      
+      prepared_term = Comparator::prepare(term)
+      suffix_index = binary_search(prepared_term, 0, @suffixes.size)
       offset = @suffixes[suffix_index]
-      if @fulltext_reader.get_data(offset, term.size) == term
-        to = binary_search_upper(term, 0, @suffixes.size)
+      if Comparator::prepare(@fulltext_reader.get_data(offset, term.size)) == prepared_term
+        to = binary_search_upper(prepared_term, 0, @suffixes.size)
         to - suffix_index
       else
         0
       end
+    ensure 
+      $KCODE = k  
     end
 
     def find_all(term)
-      suffix_index = binary_search(term, 0, @suffixes.size)
+      k = $KCODE
+      $KCODE = ''      
+      prepared_term = Comparator::prepare(term)
+      suffix_index = binary_search(prepared_term, 0, @suffixes.size)
       offset = @suffixes[suffix_index]
-      if @fulltext_reader.get_data(offset, term.size) == term
-        to = binary_search_upper(term, 0, @suffixes.size)
+      if Comparator::prepare(@fulltext_reader.get_data(offset, term.size)) == prepared_term
+        to = binary_search_upper(prepared_term, 0, @suffixes.size)
         Hits.new(term, suffix_index, to, @fulltext_reader, self)
       else
         Hits.new(term, 0, 0, @fulltext_reader, self)
       end
+    ensure 
+      $KCODE = k  
     end
 
     def find_first(term)
-      suffix_index = binary_search(term, 0, @suffixes.size)
+      k = $KCODE
+      $KCODE = ''      
+      prepared_term = Comparator::prepare(term)
+      suffix_index = binary_search(prepared_term, 0, @suffixes.size)
       offset = @suffixes[suffix_index]
-      if @fulltext_reader.get_data(offset, term.size) == term
+      if Comparator::prepare(@fulltext_reader.get_data(offset, term.size)) == prepared_term
         Hit.new(term, suffix_index, offset, @fulltext_reader)
       else
         nil
       end
+    ensure 
+      $KCODE = k  
     end
 
     def find_next(hit)
@@ -175,7 +190,7 @@ module FTSearch # :nodoc:
       tsize = term.size
       while from < to
         middle = (from + to) / 2
-        pivot = @fulltext_reader.get_data(@suffixes[middle], tsize)
+        pivot = Comparator::prepare(@fulltext_reader.get_data(@suffixes[middle], tsize))
         if term <= pivot
           to = middle
         else
@@ -190,7 +205,7 @@ module FTSearch # :nodoc:
       tsize = term.size
       while from < to
         middle = (from + to) / 2
-        pivot = @fulltext_reader.get_data(@suffixes[middle], tsize)
+        pivot = Comparator::prepare(@fulltext_reader.get_data(@suffixes[middle], tsize))
         if term < pivot # upper does not include pivot
           to = middle
         else
@@ -201,14 +216,14 @@ module FTSearch # :nodoc:
     end
 
 
-    def binary_search_inline_suffixes(term, from, to)
+    def binary_search_inline_suffixes(term, from, to)    
       return [from, to] if @block_size == 0
       tsize = term.size
       while to - from > @block_size
         middle = (from + to) / 2
         quotient, mod = middle.divmod(@block_size)
-#TEMPNJERO        middle = middle - mod
-        pivot = @inline_suffixes[quotient]
+#        middle = middle - mod
+        pivot = Comparator::prepare(@inline_suffixes[quotient])
         if tsize <= @inline_suffix_size
           if term <= pivot
             to = middle
@@ -223,7 +238,7 @@ module FTSearch # :nodoc:
           if term > pivot
             from = middle + 1
           else 
-            pivot = @fulltext_reader.get_data(@suffixes[middle], term.size)
+            pivot = Comparator::prepare(@fulltext_reader.get_data(@suffixes[middle], term.size))
             if term <= pivot
               to = middle
             else
@@ -242,7 +257,7 @@ module FTSearch # :nodoc:
         middle = (from + to) / 2
         quotient, mod = middle.divmod(@block_size)
         middle = middle - mod
-        pivot = @inline_suffixes[quotient]
+        pivot = Comparator::prepare(@inline_suffixes[quotient])
         if tsize <= @inline_suffix_size
           if term < pivot[0, tsize] # upper does not include pivot
             to = middle
@@ -257,7 +272,7 @@ module FTSearch # :nodoc:
           if term > pivot
             from = middle + 1
           else 
-            pivot = @fulltext_reader.get_data(@suffixes[middle], term.size)
+            pivot = Comparator::prepare(@fulltext_reader.get_data(@suffixes[middle], term.size))
             if term < pivot # upper does not include pivot
               to = middle
             else
