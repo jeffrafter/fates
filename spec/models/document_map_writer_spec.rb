@@ -4,7 +4,7 @@ require File.dirname(__FILE__) + '/../../init'
 describe :document_map_writer do
   
   before :all do
-    @sample_path = File.dirname(__FILE__) + '/samples/map_test'
+    @sample_path = File.dirname(__FILE__) + '/../samples/map_test'
   end
 
   it "should use a file stream if created with a path option when finished" do

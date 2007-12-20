@@ -4,7 +4,7 @@ require File.dirname(__FILE__) + '/../../init'
 describe :suffix_array_writer do
   
   before :all do
-    @sample_path = File.dirname(__FILE__) + '/samples/suffixes_test'
+    @sample_path = File.dirname(__FILE__) + '/../samples/suffixes_test'
     @field_map = Hash.new{|h,k| h[k.to_sym] = h.size}
     @field_map[:uri]
     @field_infos = FTSearch::FieldInfos.new
@@ -52,11 +52,11 @@ describe :suffix_array_writer do
     @w.finish!(@f.data)
     io = @w.io
     io.seek(0, 0)
-    lambda {@w.merge(FTSearch::SuffixArrayReader.new(@f, @m, :io => io))}.should raise_error
+    lambda {@w.merge(FTSearch::SuffixArrayReader.new(@f, :io => io))}.should raise_error
     
     io.seek(0, 0)
     @w2 = FTSearch::SuffixArrayWriter.new
-    @w2.merge(FTSearch::SuffixArrayReader.new(@f, @m, :io => io))
+    @w2.merge(FTSearch::SuffixArrayReader.new(@f, :io => io))
     @w2.instance_variable_get('@suffixes').should == [24, 16]
     @w2.finish!(@f.data)
     @w2.data.should == @w.data

@@ -4,7 +4,7 @@ require File.dirname(__FILE__) + '/../../init'
 describe :fulltext_writer do
 
   before :all do
-    @sample_path = File.dirname(__FILE__) + '/samples/fulltext_test'
+    @sample_path = File.dirname(__FILE__) + '/../samples/fulltext_test'
     @field_map = Hash.new{|h,k| h[k.to_sym] = h.size}
     @field_map[:uri]
     @field_infos = FTSearch::FieldInfos.new
@@ -28,7 +28,7 @@ describe :fulltext_writer do
     @w = FTSearch::FulltextWriter.new
     @w.add_document(1, {:primary_key => 1, :sample_field => 'A'}, @field_map, @field_infos, @suffix_array_writer, @map_writer)
     @w.finish!
-    @w.data.should == "\n\000\000\000\001\000\000\000\002\000\000\000\001\000\000\000A\000\000"
+    @w.data.should == "\n\000\000\000\001\000\000\000\001\000\000\000\001\000\000\000A\000\000"
   end
   
   it "should create a document mapping when the document is added" do
@@ -53,7 +53,7 @@ describe :fulltext_writer do
     @w2 = FTSearch::FulltextWriter.new
     @w2.merge(FTSearch::FulltextReader.new(:io => io))
     @w2.finish!
-    @w2.data.should == "\n\000\000\000\001\000\000\000\002\000\000\000\001\000\000\000A\000\000"
+    @w2.data.should == "\n\000\000\000\001\000\000\000\001\000\000\000\001\000\000\000A\000\000"
   end  
     
 end

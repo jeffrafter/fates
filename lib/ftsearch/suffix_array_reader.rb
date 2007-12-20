@@ -82,9 +82,8 @@ module FTSearch # :nodoc:
       end
     end
 
-    def initialize(fulltext_reader, doc_map, options = {})
+    def initialize(fulltext_reader, options = {})
       @fulltext_reader = fulltext_reader
-      @doc_map = doc_map
       unless options[:path] || options[:io]
         raise ArgumentError, "Need either the path to the suffix array file or an input/output stream."
       end

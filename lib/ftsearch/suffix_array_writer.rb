@@ -114,7 +114,7 @@ module FTSearch # :nodoc:
       tsize = fulltext.size # TODO check this size versus 40
       @suffixes = @suffixes.sort_by{|offset| fulltext[offset, tsize - offset]}
     ensure
-      $KCODE = k  
+      $KCODE = k if k
     end
   end
 end  # FTSearch

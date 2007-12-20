@@ -14,7 +14,7 @@ end
 describe :in_memory_writer do
   
   before :all do
-    @sample_path = File.dirname(__FILE__) + '/samples/in_memory_writer_test'
+    @sample_path = File.dirname(__FILE__) + '/../samples/in_memory_writer_test'
   end
   
   before :each do
