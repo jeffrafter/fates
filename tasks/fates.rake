@@ -147,7 +147,8 @@ namespace :fates do
     rdoc.rdoc_files.include('README')
     rdoc.rdoc_files.include('lib/**/*.rb')
   end
-  
+
+=begin  
   namespace :spec do
     
     $LOAD_PATH << File.join(File.dirname(__FILE__), '..', '..', 'rspec', 'lib') 
@@ -179,4 +180,5 @@ namespace :fates do
       end
     end
   end
+=end  
 end
