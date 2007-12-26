@@ -12,6 +12,14 @@ Fate Search does phrasal search naturally, if you're lookup for "big array", jus
 enter it (without the quotes); with ferret-lookup.rb, you *have* to
 surround the phrase with quotes.
 
+TRY IT OUT
+==========
+git clone git://codeplot.com/fates.git
+rake fates:index
+rake fates:search QUERY='Smith'
+
+Note: index builds the index, currently merged indexes are not supported. Search
+allows you to look for names from the spec/samples/contacts.csv file. 
 
 LICENSE
 =======
