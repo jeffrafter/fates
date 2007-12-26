@@ -46,22 +46,15 @@ module FTSearch # :nodoc:
     # a hash of the fields and values that will be stored for the document. 
     # The key for each field in the hash should match the key used when creating
     # fields in the field_infos.
-    def add_document(id, field_hash, field_mapping, field_infos, suffix_array_writer, map_writer)
-      write_document_header(id, field_hash, field_mapping, field_infos)
-#      map_writer.add_document(id, field_hash[:uri])
-      primary_key = field_hash[:primary_key] || 0
-      field_hash.each_pair do |field_name, data|
-        if field_id = field_mapping[field_name]
-          field_info = field_infos[field_name]
-          if field_info[:stored]
-            suffix_offset, segment_offset = store_field(primary_key, field_id, data)
-            if analyzer = field_info[:analyzer]
-              suffix_array_writer.add_suffixes(analyzer, data, suffix_offset)
-            end
-#            map_writer.add_field(segment_offset, id, field_id, data.size)
-          end
-        end
-      end
+    def add_document(primary_key, fields, analyzers, suffix_array_writer)
+      doc_offset = @io.pos
+      write_document_header(primary_key, fields)
+      1.upto(fields.size) {|i|
+        data = fields[i] || ''
+        suffix_offset = store_field(data)
+        suffix_array_writer.add_suffixes(analyzers[i], data, suffix_offset) if analyzers[i]
+      }  
+      write_document_footer((@io.pos-doc_offset)+5)
     end
 
     # Write a trailing null character and close the file.
@@ -78,30 +71,29 @@ module FTSearch # :nodoc:
     # Write the total size of the document (for seeking) as a single long. To 
     # calculate the total size, select all of the fields from the document hash
     # that will be stored, and sum the field data size and field header size.
-    def write_document_header(doc_id, doc_hash, field_mapping, field_infos)
-      stored_fields = doc_hash.select do |field_name, data|
-        field_infos[field_name][:stored]
-      end
-      # 9 == field ids plus data size plus trailing \0
-      field_header_size = 9
-      total_size = stored_fields.inject(0){|s,(_,data)| s + data.size}
-      total_size += stored_fields.size * field_header_size
-      @io.write [total_size].pack("V") # pack the size as a long
+    def write_document_header(primary_key, fields)
+      total_size = fields.inject(0){|sum,field| sum += (field || '').size}
+      @io.write [total_size, primary_key].pack("VV") 
     end
 
+    # Write a leading null and the size of the document (for seeking) as a 
+    # single long. 
+    def write_document_footer(doc_size)
+      @io.write [doc_size].pack("V")
+      @io.write "\0"
+    end
+        
     # Write the field to the current input/output stream. Each field will be 
     # stored with a header that contains the doc_id, field_id, and size (as longs) followed
     # by the data for the field (the actual text or value) and a trailing \0.
     # This function returns an array containing the offset to the start of 
     # the data, and the offset of the field header in the input/output stream.
-    def store_field(primary_key, field_id, data)
-      @io.write [primary_key, field_id, data.size].pack("V3") # pack the array as three longs
+    def store_field(data)
+      @io.write [data.size].pack("V") 
       offset = @io.pos
       @io.write data
       @io.write "\0"
-      @io.write [primary_key, field_id, data.size].pack("V3") # pack the array as three longs
-      @io.write "\0"
-      [offset, offset - 12] # start of data, start of header (header size is 12)
+      offset 
     end
   end
 end  # FTSearch

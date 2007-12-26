@@ -77,6 +77,8 @@ module FTSearch # :nodoc:
       end
       
       def [](index)
+        # 4 = size of a single long, the suffixes are a sequence of longs that 
+        # represent offsets into the fulltext
         @suffixes_io.pos = @base + index * 4
         @suffixes_io.read(4).unpack("V")[0]
       end
@@ -145,6 +147,8 @@ module FTSearch # :nodoc:
     end
 
     def hits_to_offsets(hits)
+      # 4 = size of a single long, the suffixes are a sequence of longs that 
+      # represent offsets into the fulltext
       from = hits.from_index
       to   = hits.to_index
       @io.pos = @suffixes.base + 4 * from
@@ -172,7 +176,7 @@ module FTSearch # :nodoc:
       @total_suffixes, @block_size, @inline_suffix_size = @io.read(12).unpack("VVV")
       @inline_suffixes = []
       if @block_size != 0
-        0.step(@total_suffixes, @block_size){ @inline_suffixes << @io.read(@inline_suffix_size)}
+        0.step(@total_suffixes, @block_size) { @inline_suffixes << @io.read(@inline_suffix_size) }
       end
 
       # skip padding
@@ -255,7 +259,7 @@ module FTSearch # :nodoc:
       while to - from > @block_size
         middle = (from + to) / 2
         quotient, mod = middle.divmod(@block_size)
-        middle = middle - mod
+#        middle = middle - mod
         pivot = Comparator::prepare(@inline_suffixes[quotient])
         if tsize <= @inline_suffix_size
           if term < pivot[0, tsize] # upper does not include pivot

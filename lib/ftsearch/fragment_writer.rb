@@ -50,6 +50,7 @@ module FTSearch
       @suffix_array_writer = create.call(:suffix_array_writer, :path => build_path["suffixes"])
       @doc_map_writer      = create.call(:doc_map_writer, :path      => build_path["docmap"])
 
+      @analyzers = options[:analyzers]
       default_analyzer = (klass = options[:default_analyzer_class]) ? klass.new : nil
       @field_infos     = create.call(:field_infos, :default_analyzer => default_analyzer)
       @num_documents   = 0
@@ -57,11 +58,8 @@ module FTSearch
       @field_map[:uri] # init
     end
 
-    def add_document(doc_hash)
-      uri = doc_hash[:uri] || @num_documents.to_s
-      @fulltext_writer.add_document(@num_documents, doc_hash.merge(:uri => uri), 
-                                    @field_map, @field_infos, @suffix_array_writer, @doc_map_writer)
-      @num_documents += 1
+    def add_document(primary_key, fields)
+      @fulltext_writer.add_document(primary_key, fields, @analyzers, @suffix_array_writer)
     end
 
     def merge(fragment_directory)

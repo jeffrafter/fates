@@ -5,10 +5,26 @@ FATE_PATH = File.expand_path(File.dirname(__FILE__) + "/../index/fates")
 BASE_PATH = File.expand_path(File.dirname(__FILE__) + "/../index/fates/contacts")
 
 namespace :fates do
+  desc "Randomize the contacts"
+  task :randomize do
+    require 'fastercsv'
+    sample_path = File.expand_path(File.dirname(__FILE__) + "/../spec/samples/contacts.csv")
+    puts "Reading contacts"
+    rows = FasterCSV.read(sample_path)
+    puts "Writing contacts"
+    num_documents = 0
+    File.open(sample_path, "w") { |f|
+      1.upto(50000) {
+        f.write "#{num_documents += 1},\"#{rows[rand(rows.size)][1] || ''}\",\"#{rows[rand(rows.size)][2] || ''}\"\n" 
+      }  
+    }  
+  end
+
   desc "Index the sample contacts for the fates search plugin"
   task :index do
     require 'fileutils'
     require 'fastercsv'
+    require 'lib/ftsearch/analysis/whitespace_analyzer'
     sample_path = File.expand_path(File.dirname(__FILE__) + "/../spec/samples/contacts.csv")
     
     # Protect against rm -rf /
@@ -20,10 +36,8 @@ namespace :fates do
     
     puts "Preparing fields"
     t2 = Time.new
-    field_infos = FTSearch::FieldInfos.new
-    field_infos.add_field(:name => :primary_key, :stored => false)
-    field_infos.add_field(:name => :first_name) # Default analyzer is the WhitespaceAnalyzer
-    field_infos.add_field(:name => :last_name) # Default analyzer is the WhitespaceAnalyzer
+    white_space = FTSearch::Analysis::WhitespaceAnalyzer.new
+    analyzers = [white_space, white_space]
 
     puts "Reading contacts"
     t3 = Time.new
@@ -31,8 +45,8 @@ namespace :fates do
     
     puts "Indexing contacts"
     t4 = Time.new
-    fragment  = FTSearch::FragmentWriter.new(:path => "#{BASE_PATH}-0000000", :field_infos => field_infos)
-    rows.each {|row| fragment.add_document(:primary_key => row[0].to_i, :first_name => row[1] || '', :last_name => row[2] || '') }
+    fragment  = FTSearch::FragmentWriter.new(:path => "#{BASE_PATH}-0000000", :analyzers => analyzers)
+    rows.each {|row| fragment.add_document(row[0].to_i, row[1..2]) }
 
     puts "Writing indexes"
     t5 = Time.new
@@ -48,6 +62,81 @@ namespace :fates do
     puts "Total time: #{Time.new - t1}"
     puts "Total records: #{rows.size}"
   end
+  
+  desc "Search the contacts in the fates search plugin QUERY='find this' COUNT='no'"
+  task :search do
+    q = ENV['QUERY']
+          
+    # Probablistic sorting is useful for large data sets
+    sort = false
+    probabilistic_sorting = false 
+
+    # Lookup the most recent index files
+    latest = Dir["#{BASE_PATH}-*"].sort.last
+
+    puts "Loading the index files"
+    t1 = Time.new
+    fulltext_reader = FTSearch::FulltextReader.new(:path => "#{latest}/fulltext")
+    suffix_array_reader = FTSearch::SuffixArrayReader.new(fulltext_reader, :path => "#{latest}/suffixes")
+    doc_map_reader = FTSearch::DocumentMapReader.new(:path => "#{latest}/docmap")
+    
+    unless ENV['COUNT'] == 'no'
+      count_time = Time.new
+      puts "Counting the number of hits"
+      puts "Total hits: #{suffix_array_reader.count_hits(q)} (#{Time.new - count_time})"      
+    end  
+
+    puts "Looking up all matches"
+    t2 = Time.new
+    hits = suffix_array_reader.find_all(q)            
+    t3 = Time.new
+    if hits && hits.size > 0
+      if sort
+        # Build a weight table for ranking (initialize for nudging certain fields)
+        h = Hash.new{|h,k| h[k] = 0}
+        weights = Hash.new(1.0)
+        weights[0] = 10000000 # :id
+        weights[1] = 00000000 # :primary_key
+        weights[2] = 20000000 # :first_name
+        weights[3] = 10000000 # :last_name
+        size = hits.size
+        offsets = suffix_array_reader.hits_to_offsets(hits)
+        if probabilistic_sorting
+          puts "Using probabilistic sorting"      
+          iterations = 50 * Math.sqrt(size)
+          weight_arr = weights.sort_by{|id,w| id}.map{|_,v| v}
+          sorted = doc_map_reader.rank_offsets_probabilistic(offsets, weight_arr, iterations)
+        else
+          sorted = doc_map_reader.rank_offsets(offsets, weights.sort_by{|id,w| id}.map{|_,v| v})
+        end
+        sorted.each{|doc_id, score| doc_map_reader.document_id_to_uri(doc_id)}
+        puts "Showing #{sorted.size <= 10 ? 'all' : 'top 10'} matches of #{hits.size}:"
+        ids = sorted[0..10].map{ |doc_id, count| doc_map_reader.document_id_to_uri(doc_id).to_i }
+        #contacts = Contact.find(:all, :conditions => ["id in (?)", ids])
+        #puts contacts.map{|c| "#{c.first_name} #{c.last_name}"}  
+      else  
+        puts "Showing #{hits.size <= 10 ? 'all' : 'top 10'} matches of #{hits.size}:"
+        0.upto(hits.size) { |i| 
+          if i < hits.size 
+            record_data = fulltext_reader.offset_to_record_data(hits[i].offset) 
+            primary_key = fulltext_reader.get_primary_key(record_data) 
+            fields = fulltext_reader.get_fields(record_data) 
+            p "#{primary_key}: #{fields.join(',')}"
+          end  
+        }  
+      end  
+    else
+      puts "No matches found"  
+    end
+    t4 = Time.new
+    puts "----"
+    puts "Needed to load cache (#{t2-t1})"
+    puts "Needed to find all matches (#{t3-t2})"
+    puts "Needed to print matches (#{t4-t3})"
+    ## puts "Needed to find, rank, and map ids (#{d3})"
+    ## puts "Needed to lookup matches in database (#{Time.new - t4})"
+    puts "Total time (#{Time.new - t1})"
+  end        
 
   desc 'Generate documentation for the fates search plugin.'
   Rake::RDocTask.new(:rdoc) do |rdoc|

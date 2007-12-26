@@ -74,7 +74,7 @@ module FTSearch # :nodoc:
     def dump_suffixes(fulltext)
       io = @path ? File.open(@path, "wb") : @memory_io
       # Number of suffixes, block size for each suffix, 
-      io.write([@suffixes.size, @block_size || 0, @inline_suffix_size].pack("VVV")) # TODO three sequential longs, could be V3
+      io.write([@suffixes.size, @block_size || 0, @inline_suffix_size].pack("VVV")) 
       dump_inline_suffixes(io, fulltext) if @block_size && @block_size > 0
       add_padding(io)
       dump_suffix_array(io)
@@ -111,7 +111,7 @@ module FTSearch # :nodoc:
       return unless @need_sort
       k = $KCODE
       fulltext = fulltext.downcase
-      tsize = fulltext.size # TODO check this size versus 40
+      tsize = fulltext.size
       @suffixes = @suffixes.sort_by{|offset| fulltext[offset, tsize - offset]}
     ensure
       $KCODE = k if k
