@@ -85,7 +85,7 @@ module FateSearch # :nodoc:
     # Dump the inline suffixes to the current input/output stream. The data is
     # written as a null padded ascii string which is +inline_suffix_size+ long.
     def dump_inline_suffixes(io, fulltext)
-      0.step(@suffixes.size, @block_size) do |suffix_idx|
+      0.step(@suffixes.size-1, @block_size) do |suffix_idx|
         io.write([fulltext[@suffixes[suffix_idx], @inline_suffix_size]].pack("a#{@inline_suffix_size}"))
       end
     end

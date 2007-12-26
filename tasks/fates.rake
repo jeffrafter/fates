@@ -70,7 +70,7 @@ namespace :fates do
     q = ENV['QUERY']
           
     # Probablistic sorting is useful for large data sets
-    sort = false
+    sort = ENV['SORT'] != 'no'
     probabilistic_sorting = false 
 
     # Lookup the most recent index files
@@ -91,38 +91,39 @@ namespace :fates do
     t2 = Time.new
     hits = suffix_array_reader.find_all(q)            
     t3 = Time.new
+    show_all = ENV['ALL'] == 'yes'
     if hits && hits.size > 0
       if sort
         # Build a weight table for ranking (initialize for nudging certain fields)
-        h = Hash.new{|h,k| h[k] = 0}
-        weights = Hash.new(1.0)
-        weights[0] = 10000000 # :id
-        weights[1] = 00000000 # :primary_key
-        weights[2] = 20000000 # :first_name
-        weights[3] = 10000000 # :last_name
+        weights = [1, 3] # :first_name, :last_name
         size = hits.size
         offsets = suffix_array_reader.hits_to_offsets(hits)
         if probabilistic_sorting
           puts "Using probabilistic sorting"      
           iterations = 50 * Math.sqrt(size)
-          weight_arr = weights.sort_by{|id,w| id}.map{|_,v| v}
-          #sorted = doc_map_reader.rank_offsets_probabilistic(offsets, weight_arr, iterations)
+          sorted = fulltext_reader.rank_offsets_probabilistic(offsets, weights, iterations)
         else
-          #sorted = doc_map_reader.rank_offsets(offsets, weights.sort_by{|id,w| id}.map{|_,v| v})
+          sorted = fulltext_reader.rank_offsets(offsets, weights)
         end
-        #sorted.each{|doc_id, score| doc_map_reader.document_id_to_uri(doc_id)}
-        #puts "Showing #{sorted.size <= 10 ? 'all' : 'top 10'} matches of #{hits.size}:"
-        #ids = sorted[0..10].map{ |doc_id, count| doc_map_reader.document_id_to_uri(doc_id).to_i }
-        #contacts = Contact.find(:all, :conditions => ["id in (?)", ids])
-        #puts contacts.map{|c| "#{c.first_name} #{c.last_name}"}  
+        puts "Showing #{sorted.size <= 10 || show_all ? 'all' : 'top 10'} matches of #{sorted.size}:"
+        count = sorted.size > 10 && show_all ? sorted.size : 10
+        0.upto(count) { |i| 
+          if i < sorted.size 
+            record_data = sorted[i]
+            primary_key = fulltext_reader.get_primary_key(record_data) 
+            fields = fulltext_reader.get_fields(record_data) 
+            p "#{primary_key}: #{fields.join(' ')}"
+          end  
+        }  
       else  
-        puts "Showing #{hits.size <= 10 ? 'all' : 'top 10'} matches of #{hits.size}:"
-        0.upto(hits.size) { |i| 
+        puts "Showing #{hits.size <= 10 || show_all ? 'all' : 'top 10'} matches of #{hits.size}:"
+        count = hits.size > 10 && show_all ? hits.size : 10
+        0.upto(count) { |i| 
           if i < hits.size 
             record_data = fulltext_reader.offset_to_record_data(hits[i].offset) 
             primary_key = fulltext_reader.get_primary_key(record_data) 
             fields = fulltext_reader.get_fields(record_data) 
-            p "#{primary_key}: #{fields.join(',')}"
+            p "#{primary_key}: #{fields.join(' ')}"
           end  
         }  
       end  

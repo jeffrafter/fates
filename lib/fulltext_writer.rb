@@ -48,10 +48,10 @@ module FateSearch # :nodoc:
     def add(primary_key, fields, analyzers, suffix_array_writer)
       base_offset = @io.pos
       write_header(primary_key, fields)
-      1.upto(fields.size) {|i|
-        data = fields[i] || ''
+      fields.each_with_index {|field,index|
+        data = field || ''
         suffix_offset = store_field(data)
-        suffix_array_writer.add_suffixes(analyzers[i], data, suffix_offset) if analyzers[i]
+        suffix_array_writer.add_suffixes(analyzers[index], data, suffix_offset)
       }  
       write_footer((@io.pos-base_offset)+5)
     end
@@ -72,7 +72,10 @@ module FateSearch # :nodoc:
     # and sum the field data size and field header size. Also write the 
     # +primary_key+ for lookups later
     def write_header(primary_key, fields)
-      total_size = fields.inject(0){|sum,field| sum += (field || '').size}
+      # 5 == field_header + field_footer size
+      total_size = fields.inject(0){|sum,field| sum += (field || '').size + 5}
+      # 13 == record header + record footer
+      total_size += 13
       @io.write [total_size, primary_key].pack("VV") 
     end
 
