@@ -7,7 +7,6 @@ describe :fulltext_reader do
   end
 
   it "should have specs" do
-    true
   end  
   
 end

@@ -1,7 +1,6 @@
-# Copyright (C) 2006  Mauricio Fernandez <mfp@acm.org>
-#
+# See README for Copyright and License information 
 
-module FTSearch # :nodoc:
+module FateSearch # :nodoc:
   module Analysis # :nodoc:
     # Analyzers are used to break down text into suffixes. The base +Analyzer+
     # is not intended for direct use and will not find any suffixes. Instead
@@ -19,5 +18,5 @@ module FTSearch # :nodoc:
       def append_suffixes(array, text, offset); end
       
     end
-  end # Analysis
-end # FTSearch
+  end
+end 

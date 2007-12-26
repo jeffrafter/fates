@@ -2,7 +2,7 @@ require File.dirname(__FILE__) + '/../spec_helper'
 require File.dirname(__FILE__) + '/../../init'
 
 class TempSpecWriter 
-  include FTSearch::InMemoryWriter
+  include FateSearch::InMemoryWriter
 
   attr_accessor :path   
 

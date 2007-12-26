@@ -1,10 +1,10 @@
-# Copyright (C) 2006  Mauricio Fernandez <mfp@acm.org>
-#
+# See README for Copyright and License information
 
 require 'enumerator'
-require 'ftsearch/in_memory_writer'
+require 'in_memory_writer'
 
-module FTSearch # :nodoc:
+module FateSearch # :nodoc:
+
   # Class that allows you to append a list of suffixes to an array and write it
   # to a specified file or in memory buffer.
   class SuffixArrayWriter
@@ -117,4 +117,4 @@ module FTSearch # :nodoc:
       $KCODE = k if k
     end
   end
-end  # FTSearch
+end 

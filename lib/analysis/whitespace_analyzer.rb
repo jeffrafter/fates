@@ -1,10 +1,9 @@
-# Copyright (C) 2006  Mauricio Fernandez <mfp@acm.org>
-#
+# See README for Copyright and License information 
 
 require 'strscan'
-require 'ftsearch/analysis/analyzer'
+require 'analysis/analyzer'
 
-module FTSearch # :nodoc:
+module FateSearch # :nodoc:
   module Analysis # :nodoc:
     
     # Basic text analysis. Attempts to split a section of text based on 
@@ -23,5 +22,5 @@ module FTSearch # :nodoc:
         array
       end
     end
-  end #  Analyzer
-end  # FTSearch
+  end
+end

@@ -50,6 +50,5 @@ describe :suffix_array_reader do
   
   it "should convert a suffix index to a fulltext offset" do
   end
-  
-  
+    
 end

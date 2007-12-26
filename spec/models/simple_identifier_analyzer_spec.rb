@@ -4,7 +4,7 @@ require File.dirname(__FILE__) + '/../../init'
 describe :simple_identifier_analyzer do
   
   before :all do
-    @a = FTSearch::Analysis::SimpleIdentifierAnalyzer.new
+    @a = FateSearch::Analysis::SimpleIdentifierAnalyzer.new
   end
 
   it "should not append suffixes for blank text" do

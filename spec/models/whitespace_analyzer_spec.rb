@@ -4,7 +4,7 @@ require File.dirname(__FILE__) + '/../../init'
 describe :whitespace_analyzer do
   
   before :all do
-    @a = FTSearch::Analysis::WhitespaceAnalyzer.new
+    @a = FateSearch::Analysis::WhitespaceAnalyzer.new
   end
 
   it "should not append suffixes for blank text" do

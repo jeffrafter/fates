@@ -1,7 +1,6 @@
-# Copyright (C) 2006  Mauricio Fernandez <mfp@acm.org>
-#
+# See README for Copyright and License information
 
-module FTSearch
+module FateSearch
   class FulltextReader
     DEFAULT_OPTIONS = {
       :path => nil,
@@ -20,25 +19,25 @@ module FTSearch
       @io.read(size)
     end
           
-    # TODO this could be replaced with a single seek to the index in the document map
+    # TODO this could be replaced with a single seek to the index in a record map
     # Instead of passing offset, the suffix index would be compared to the map
     # A simpler solution is to double the size of the suffix array and store the
     # record start (and possily a single byte for field index?) It is likely there
     # is a better construction for a number relative to the suffix offset so it 
     # would not need to be a four-byte long
-    def offset_to_record_data(offset)
+    def offset_to_record_start(offset)
       # Read to the end of the data (from the offset) which is marked by a footer
       # Footer: \0
       @io.pos = offset      
       # Which is faster? this or @io.gets("\0")
       true while @io.getc != 0
       
-      # Repeatedly loop through the fields to the document footer
+      # Repeatedly loop through the fields to the record footer
       while true       
         # Read the size, it may be the record size, or subsequent field
         size = @io.read(4).unpack("V")[0]
         c = @io.getc
-        # If the size is followed by a null then it is the document footer 
+        # If the size is followed by a null then it is the record footer 
         # Unless the size is 0, then it is just an empty field
         if (c == 0 && size != 0)          
           end_pos = @io.pos
@@ -48,13 +47,19 @@ module FTSearch
           # Not a null, skip the field data (and trailing null)
           @io.seek(size, IO::SEEK_CUR)
         end
-      end  
+      end        
+      [record_start, size]
+    end  
 
-      # Now that we have the record start position and the ending position, read
+    # Gets the record start position and the size and reads the block
+    def offset_to_record_data(offset)
+      record_start, size = offset_to_record_start(offset)
       @io.seek(record_start, IO::SEEK_SET)
       @io.read(size)
     end  
     
+    # TODO, don't use blocks here, just grab the offsets and read the key
+    # or create an alternate that does that
     def get_primary_key(data_block)
       # Header: 8 == total field data size, primary key
       primary_key = data_block[4..7].unpack("V")[0]
@@ -76,26 +81,6 @@ module FTSearch
       fields
     end
         
-    #def get_field(offset)
-      # Read to the end of the data (from the offset) which is marked by a footer      
-      # Footer: \0, data size
-      
-      ## Gets implementation (slightly faster, with pathalogical exceptions)
-      #@io.pos = offset      
-      #field = @io.gets("\0")
-      #end_pos = @io.pos - 1
-      #field_size = @io.read(4).unpack("V")[0]
-      #return field if end_pos-field_size == field.size
-      #get_data(end_pos-field_size, field_size)
-      
-      ## Alternative implementation (slightly slower)
-      # @io.pos = offset      
-      # true while @io.getc != 0
-      # end_pos = @io.pos - 1
-      # field_size = @io.read(4).unpack("V")[0]
-      # get_data(end_pos-field_size, field_size)
-    #end
-
     def dump_data(&block)
       blocksize = 32768
       @io.pos = 0
@@ -121,4 +106,4 @@ module FTSearch
       end
     end
   end
-end #  FTSearch
+end

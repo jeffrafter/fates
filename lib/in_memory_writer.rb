@@ -1,9 +1,8 @@
-# Copyright (C) 2006  Mauricio Fernandez <mfp@acm.org>
-#
+# See README for Copyright and License information
 
 require 'stringio'
 
-module FTSearch # :nodoc:
+module FateSearch # :nodoc:
   module InMemoryWriter # :nodoc:
 
     # Create the buffer
@@ -42,4 +41,4 @@ module FTSearch # :nodoc:
       end
     end        
   end
-end  # FTSearch
+end  

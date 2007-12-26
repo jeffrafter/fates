@@ -7,7 +7,6 @@ describe :fragment_writer do
   end
 
   it "should have specs" do
-    true
   end  
   
 end

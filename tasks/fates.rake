@@ -1,3 +1,5 @@
+# See README for Copyright and License information 
+
 require 'rake/testtask'
 require 'rake/rdoctask'
 
@@ -20,11 +22,11 @@ namespace :fates do
     }  
   end
 
-  desc "Index the sample contacts for the fates search plugin"
+  desc "Index the sample contacts for the fate search plugin"
   task :index do
     require 'fileutils'
     require 'fastercsv'
-    require 'lib/ftsearch/analysis/whitespace_analyzer'
+    require 'lib/analysis/whitespace_analyzer'
     sample_path = File.expand_path(File.dirname(__FILE__) + "/../spec/samples/contacts.csv")
     
     # Protect against rm -rf /
@@ -36,7 +38,7 @@ namespace :fates do
     
     puts "Preparing fields"
     t2 = Time.new
-    white_space = FTSearch::Analysis::WhitespaceAnalyzer.new
+    white_space = FateSearch::Analysis::WhitespaceAnalyzer.new
     analyzers = [white_space, white_space]
 
     puts "Reading contacts"
@@ -45,8 +47,8 @@ namespace :fates do
     
     puts "Indexing contacts"
     t4 = Time.new
-    fragment  = FTSearch::FragmentWriter.new(:path => "#{BASE_PATH}-0000000", :analyzers => analyzers)
-    rows.each {|row| fragment.add_document(row[0].to_i, row[1..2]) }
+    fragment  = FateSearch::FragmentWriter.new(:path => "#{BASE_PATH}-0000000", :analyzers => analyzers)
+    rows.each {|row| fragment.add(row[0].to_i, row[1..2]) }
 
     puts "Writing indexes"
     t5 = Time.new
@@ -63,7 +65,7 @@ namespace :fates do
     puts "Total records: #{rows.size}"
   end
   
-  desc "Search the contacts in the fates search plugin QUERY='find this' COUNT='no'"
+  desc "Search the contacts in the fate search plugin QUERY='find this' COUNT='no'"
   task :search do
     q = ENV['QUERY']
           
@@ -76,9 +78,8 @@ namespace :fates do
 
     puts "Loading the index files"
     t1 = Time.new
-    fulltext_reader = FTSearch::FulltextReader.new(:path => "#{latest}/fulltext")
-    suffix_array_reader = FTSearch::SuffixArrayReader.new(fulltext_reader, :path => "#{latest}/suffixes")
-    doc_map_reader = FTSearch::DocumentMapReader.new(:path => "#{latest}/docmap")
+    fulltext_reader = FateSearch::FulltextReader.new(:path => "#{latest}/fulltext")
+    suffix_array_reader = FateSearch::SuffixArrayReader.new(fulltext_reader, :path => "#{latest}/suffixes")
     
     unless ENV['COUNT'] == 'no'
       count_time = Time.new
@@ -105,13 +106,13 @@ namespace :fates do
           puts "Using probabilistic sorting"      
           iterations = 50 * Math.sqrt(size)
           weight_arr = weights.sort_by{|id,w| id}.map{|_,v| v}
-          sorted = doc_map_reader.rank_offsets_probabilistic(offsets, weight_arr, iterations)
+          #sorted = doc_map_reader.rank_offsets_probabilistic(offsets, weight_arr, iterations)
         else
-          sorted = doc_map_reader.rank_offsets(offsets, weights.sort_by{|id,w| id}.map{|_,v| v})
+          #sorted = doc_map_reader.rank_offsets(offsets, weights.sort_by{|id,w| id}.map{|_,v| v})
         end
-        sorted.each{|doc_id, score| doc_map_reader.document_id_to_uri(doc_id)}
-        puts "Showing #{sorted.size <= 10 ? 'all' : 'top 10'} matches of #{hits.size}:"
-        ids = sorted[0..10].map{ |doc_id, count| doc_map_reader.document_id_to_uri(doc_id).to_i }
+        #sorted.each{|doc_id, score| doc_map_reader.document_id_to_uri(doc_id)}
+        #puts "Showing #{sorted.size <= 10 ? 'all' : 'top 10'} matches of #{hits.size}:"
+        #ids = sorted[0..10].map{ |doc_id, count| doc_map_reader.document_id_to_uri(doc_id).to_i }
         #contacts = Contact.find(:all, :conditions => ["id in (?)", ids])
         #puts contacts.map{|c| "#{c.first_name} #{c.last_name}"}  
       else  
@@ -138,10 +139,10 @@ namespace :fates do
     puts "Total time (#{Time.new - t1})"
   end        
 
-  desc 'Generate documentation for the fates search plugin.'
+  desc 'Generate documentation for the fate search plugin.'
   Rake::RDocTask.new(:rdoc) do |rdoc|
     rdoc.rdoc_dir = 'rdoc'
-    rdoc.title    = 'Fates Search Full Text Searching Plugin'
+    rdoc.title    = 'Fate Search Full Text Searching Plugin'
     rdoc.options << '--line-numbers' << '--inline-source'
     rdoc.rdoc_files.include('README')
     rdoc.rdoc_files.include('lib/**/*.rb')
@@ -157,19 +158,19 @@ namespace :fates do
       class << self; def run; false; end; end
     end          
 
-    desc 'Test the specifications of the fates search plugin.'
+    desc 'Test the specifications of the fate search plugin.'
     Spec::Rake::SpecTask.new(:spec) do |spec|
       spec.spec_opts = ['--options', 'spec/spec.opts']
-      spec.spec_files = FileList['spec/**/*_spec.rb']
+      spec.spec_files = FileList['spec/models/*_spec.rb']
     end
 
-    desc 'Document the specifications of the fates search plugin.'
+    desc 'Document the specifications of the fate search plugin.'
     Spec::Rake::SpecTask.new(:doc) do |spec|
       spec.spec_opts = ['--format', 'specdoc', '--dry-run']
       spec.spec_files = FileList['spec/**/*_spec.rb']
     end
 
-    desc 'Review coverage for the specifications of the fates search plugin.'
+    desc 'Review coverage for the specifications of the fate search plugin.'
     Spec::Rake::SpecTask.new(:rcov) do |spec|
       spec.spec_files = FileList['../spec/**/*_spec.rb']
       spec.rcov = true
