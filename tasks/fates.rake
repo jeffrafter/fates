@@ -69,9 +69,10 @@ namespace :fates do
   task :search do
     q = ENV['QUERY']
           
-    # Probablistic sorting is useful for large data sets
-    sort = ENV['SORT'] != 'no'
-    probabilistic_sorting = false 
+    # Probabilistic sorting is useful for large data sets
+    default_sorting = ENV['SORT'] == 'd'
+    probabilistic_sorting = ENV['SORT'] == 'p'
+    fragment_sorting = ENV['SORT'] == 'f'
 
     # Lookup the most recent index files
     latest = Dir["#{BASE_PATH}-*"].sort.last
@@ -93,15 +94,14 @@ namespace :fates do
     t3 = Time.new
     show_all = ENV['ALL'] == 'yes'
     if hits && hits.size > 0
-      if sort
+      if default_sorting || probabilistic_sorting || fragment_sorting
         # Build a weight table for ranking (initialize for nudging certain fields)
         weights = [10000000, 30000000] # :first_name, :last_name
-        size = hits.size
         offsets = suffix_array_reader.hits_to_offsets(hits)
         if probabilistic_sorting
-          puts "Using probabilistic sorting"      
-          iterations = 50 * Math.sqrt(size)
-          sorted = fulltext_reader.rank_offsets_probabilistic(offsets, weights, iterations)
+          sorted = fulltext_reader.rank_offsets_probabilistic(offsets, weights)
+        elsif fragment_sorting
+          sorted = fulltext_reader.rank_offsets_by_fragment(offsets, weights)          
         else
           sorted = fulltext_reader.rank_offsets(offsets, weights)
         end
@@ -118,6 +118,8 @@ namespace :fates do
         count = hits.size > 10 && show_all ? hits.size : 10
         0.upto(count) { |i| 
           if i < hits.size 
+            # Get full fields            
+            # If you don't need all of the fields or key, use hits[i].context(30)
             record_data = fulltext_reader.offset_to_record_data(hits[i].offset) 
             primary_key = fulltext_reader.get_primary_key(record_data) 
             fields = fulltext_reader.get_fields(record_data) 

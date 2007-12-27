@@ -22,12 +22,9 @@ module FateSearch
     # Gets the record start position and the size and reads the block
     def offset_to_record_data(offset)
       record_start, size = offset_to_record_start(offset)
-      @io.seek(record_start, IO::SEEK_SET)
-      @io.read(size)
+      get_data(record_start, size)
     end  
     
-    # TODO, don't use blocks here, just grab the offsets and read the key
-    # or create an alternate that does that
     def get_primary_key(data_block)
       # Header: 8 == total field data size, primary key
       primary_key = data_block[4..7].unpack("V")[0]
@@ -40,7 +37,7 @@ module FateSearch
       size = data_block.size
       fields = []
       field_start = header_size
-      while field_start < size - (header_size + footer_size)
+      while field_start <= size - (header_size + footer_size)
         # Fields are structured: data size, data, \0
         field_size = data_block[(field_start)..(field_start+3)].unpack("V")[0] 
         fields << data_block[(field_start+4)..(field_start+4+field_size-1)]
@@ -49,36 +46,29 @@ module FateSearch
       fields
     end
         
-=begin
-    def rank_offsets(offsets, weights)
+    def rank_offsets_by_fragment(offsets, weights, limit = 10)
       # Convert the offset positions into record markers
       h = Hash.new{|h,k| h[k] = 0.0}
       sizes = Hash.new
       record_offsets = offsets.map{|offset| offset_to_record_start(offset) }   
       record_offsets.each {|record_offset|
-        # Ideally, we would use weights[field_index] instead of 1 and would use
-        # the field size instead of the total record size (record_offset[1])
-        # This instead uses a cheap approximation which does not allow for 
-        # weighting or context length
-        # TODO, handling this correctly would mean returning the field id and
-        # TODO, field size when performing offset_to_record_start. This would
-        # TODO, mean that we need to retrieve total number of fields and all of 
-        # TODO, the field sizes, or create a map for them. The suffix array 
-        # TODO, writer could easily write <offset>, <index>, <record start>, <field start>, <size>
-        # TODO, things would get much more interesting if you set a max field length of 255.
         h[record_offset[0]] += 1 / record_offset[1]  
         sizes[record_offset[0]] ||= record_offset[1]   
       }
       # Sort based on the scores (key, value)
       sorted_offsets = h.sort_by{|offset,score| -score}
       # Return the results as data blocks
-      sorted_offsets.map {|offset,score|
+      blocks = []
+      0.upto(limit-1) {|index|
+        break if index >= sorted_offsets.size
+        offset, score = sorted_offsets[index]
         size = sizes[offset]
         @io.seek(offset, IO::SEEK_SET)
-        @io.read(size)        
-      } 
+        data = @io.read(size)        
+        blocks << [get_primary_key(data), get_fields(data)]
+      }  
+      blocks
     end
-=end
 
     def rank_offsets(offsets, weights)
       scores = Hash.new{|h,k| h[k] = 0.0}
@@ -110,24 +100,32 @@ module FateSearch
       sorted_offsets.map {|start,score| [keys[start], fields[start]] } 
     end
 
-    def rank_offsets_probabilistic(offsets, weights, iterations)
+    def rank_offsets_probabilistic(offsets, weights, limit = 10)
+      iterations = 50 * Math.sqrt(offsets.size)
       h = Hash.new{|h,k| h[k] = 0.0}
+      sizes = Hash.new
       record_offsets = offsets.map{|offset| offset_to_record_start(offset) }   
       max = record_offsets.size
       while iterations > 0
         start, size = record_offsets[rand(max)]
         # See note in rank_offsets
         h[start] += 1 / size
+        sizes[start] ||= size
         iterations -= 1
       end
       # Sort based on the scores (key, value)
       sorted_offsets = h.sort_by{|offset,score| -score}
       # Return the results as data blocks
-      sorted_offsets.map {|offset,score|
+      blocks = []
+      0.upto(limit-1) {|index|
+        break if index >= sorted_offsets.size
+        offset, score = sorted_offsets[index]
         size = sizes[offset]
         @io.seek(offset, IO::SEEK_SET)
-        @io.read(size)        
-      } 
+        data = @io.read(size)        
+        blocks << [get_primary_key(data), get_fields(data)]
+      }  
+      blocks
     end
             
     def dump_data(&block)
