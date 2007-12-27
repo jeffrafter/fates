@@ -95,7 +95,7 @@ namespace :fates do
     if hits && hits.size > 0
       if sort
         # Build a weight table for ranking (initialize for nudging certain fields)
-        weights = [1, 3] # :first_name, :last_name
+        weights = [10000000, 30000000] # :first_name, :last_name
         size = hits.size
         offsets = suffix_array_reader.hits_to_offsets(hits)
         if probabilistic_sorting
@@ -109,9 +109,7 @@ namespace :fates do
         count = sorted.size > 10 && show_all ? sorted.size : 10
         0.upto(count) { |i| 
           if i < sorted.size 
-            record_data = sorted[i]
-            primary_key = fulltext_reader.get_primary_key(record_data) 
-            fields = fulltext_reader.get_fields(record_data) 
+            primary_key, fields = sorted[i]
             p "#{primary_key}: #{fields.join(' ')}"
           end  
         }  

@@ -49,6 +49,7 @@ module FateSearch
       fields
     end
         
+=begin
     def rank_offsets(offsets, weights)
       # Convert the offset positions into record markers
       h = Hash.new{|h,k| h[k] = 0.0}
@@ -76,6 +77,37 @@ module FateSearch
         @io.seek(offset, IO::SEEK_SET)
         @io.read(size)        
       } 
+    end
+=end
+
+    def rank_offsets(offsets, weights)
+      scores = Hash.new{|h,k| h[k] = 0.0}
+      fields = Hash.new
+      keys = Hash.new
+      # Convert the offset positions into record start and size markers
+      # The record_offsets array will correllate directly with offsets
+      record_offsets = offsets.map{|offset| offset_to_record_start(offset) }   
+      record_offsets.each_with_index {|record_offset, index|
+        start, size = record_offset
+        record_fields = nil
+        # Memoize the fields so we seek and read as little as possible
+        unless (fields.has_key?(start))
+          @io.seek(start, IO::SEEK_SET)
+          data = @io.read(size)
+          record_fields = get_fields(data)
+          fields[start] = record_fields
+          keys[start] = get_primary_key(data)
+        end  
+        # Score the documents
+        offset = offsets[index]
+        field_index, field_size = offset_to_field_info(offset, start, record_fields || fields[start])        
+        score = weights[field_index] / field_size  
+        scores[start] += score
+      }      
+      # Sort based on the scores (key, value)
+      sorted_offsets = scores.sort_by{|start,score| -score}
+      # Return the results as key, fields blocks
+      sorted_offsets.map {|start,score| [keys[start], fields[start]] } 
     end
 
     def rank_offsets_probabilistic(offsets, weights, iterations)
@@ -156,6 +188,18 @@ module FateSearch
       [record_start, size]
     end  
 
+    def offset_to_field_info(offset, start, fields)
+      offset_from_start = offset - start
+      pos = 8
+      fields.each_with_index { |field, index|
+        size = field.size + 5
+        if pos + size > offset_from_start
+          return [index, size]
+        end
+        pos += size
+      }
+      return [nil, nil]
+    end
 
   end
 end
