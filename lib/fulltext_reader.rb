@@ -101,30 +101,37 @@ module FateSearch
     end
 
     def rank_offsets_probabilistic(offsets, weights, limit = 10)
-      iterations = 50 * Math.sqrt(offsets.size)
-      h = Hash.new{|h,k| h[k] = 0.0}
-      sizes = Hash.new
-      record_offsets = offsets.map{|offset| offset_to_record_start(offset) }   
-      max = record_offsets.size
-      while iterations > 0
-        start, size = record_offsets[rand(max)]
-        # See note in rank_offsets
-        h[start] += 1 / size
-        sizes[start] ||= size
-        iterations -= 1
-      end
-      # Sort based on the scores (key, value)
-      sorted_offsets = h.sort_by{|offset,score| -score}
-      # Return the results as data blocks
-      blocks = []
-      0.upto(limit-1) {|index|
+      t1 = Time.new
+      size = offsets.size
+      scores = Hash.new
+      offsets.sort!      
+      offsets.each_with_index {|offset, index|
+        if (index == 0)
+          scores[offset] = (offsets[index+1] - offset) * 2
+        elsif (index == size-1)
+          scores[offset] = (offset - offsets[index-1]) * 2
+        else
+          left = offset - offsets[index-1]
+          right = offsets[index+1] - offset
+          scores[offset] = left + right
+          # scores[offset] = left < right ? left : right
+        end  
+      }
+      sorted_offsets = scores.sort_by{|start,score| score}
+      keys = Hash.new
+      blocks = Array.new
+      index = 0
+      while (blocks.size < limit)
         break if index >= sorted_offsets.size
-        offset, score = sorted_offsets[index]
-        size = sizes[offset]
-        @io.seek(offset, IO::SEEK_SET)
-        data = @io.read(size)        
-        blocks << [get_primary_key(data), get_fields(data)]
-      }  
+        record_data = offset_to_record_data(sorted_offsets[index][0]) 
+        primary_key = get_primary_key(record_data)
+        unless keys.has_key?(primary_key)
+          keys[primary_key] = 1
+          fields = get_fields(record_data).push(sorted_offsets[index][1])
+          blocks << [primary_key, fields]
+        end  
+        index += 1
+      end  
       blocks
     end
             
