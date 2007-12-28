@@ -15,7 +15,7 @@ module FateSearch
     end
 
     def get_data(offset, size)
-      @io.pos = offset
+      @io.pos = offset[0]
       @io.read(size)
     end
           
@@ -23,6 +23,13 @@ module FateSearch
     def offset_to_record_data(offset)
       record_start, size = offset_to_record_start(offset)
       get_data(record_start, size)
+    end  
+    
+    def hit_to_record_data(hit)
+      @io.pos = hit.record_offset
+      size = @io.read(4).unpack("V")[0]
+      @io.pos = hit.record_offset
+      @io.read(size)
     end  
     
     def get_primary_key(data_block)
@@ -46,95 +53,39 @@ module FateSearch
       fields
     end
         
-    def rank_offsets_by_fragment(offsets, weights, limit = 10)
-      # Convert the offset positions into record markers
-      h = Hash.new{|h,k| h[k] = 0.0}
-      sizes = Hash.new
-      record_offsets = offsets.map{|offset| offset_to_record_start(offset) }   
-      record_offsets.each {|record_offset|
-        h[record_offset[0]] += 1 / record_offset[1]  
-        sizes[record_offset[0]] ||= record_offset[1]   
+    def rank_offsets(hits, weights, term, limit = 10, compare_size = false)
+      t1 = Time.new
+      scores = Hash.new{|h,k| h[k] = 0.0}
+      current = hits.size
+      size = term.size.to_f
+      percent_diff = 1
+      hits.each {|hit|
+        # TODO, could maybe add one more number, the suffix size, into the array
+        if (compare_size)
+          @io.pos = hit.offset
+          text_size = @io.gets("\0").size
+          diff = (size - text_size).abs
+          percent_diff = 1 - (diff / size)
+        end  
+        scores[hit.record_offset] += (weights[hit.field_id] * percent_diff) + current
+        current -= 1
       }
-      # Sort based on the scores (key, value)
-      sorted_offsets = h.sort_by{|offset,score| -score}
+      sorted_offsets = scores.sort_by{|offset,score| -score}
       # Return the results as data blocks
       blocks = []
       0.upto(limit-1) {|index|
         break if index >= sorted_offsets.size
         offset, score = sorted_offsets[index]
-        size = sizes[offset]
-        @io.seek(offset, IO::SEEK_SET)
+        @io.pos = offset
+        size = @io.read(4).unpack("V")[0]
+        @io.pos = offset
         data = @io.read(size)        
-        blocks << [get_primary_key(data), get_fields(data)]
+        blocks << [get_primary_key(data), get_fields(data), score]
       }  
+      puts "Ranking took (#{Time.new - t1}) seconds"
       blocks
     end
 
-    def rank_offsets(offsets, weights)
-      scores = Hash.new{|h,k| h[k] = 0.0}
-      fields = Hash.new
-      keys = Hash.new
-      # Convert the offset positions into record start and size markers
-      # The record_offsets array will correllate directly with offsets
-      record_offsets = offsets.map{|offset| offset_to_record_start(offset) }   
-      record_offsets.each_with_index {|record_offset, index|
-        start, size = record_offset
-        record_fields = nil
-        # Memoize the fields so we seek and read as little as possible
-        unless (fields.has_key?(start))
-          @io.seek(start, IO::SEEK_SET)
-          data = @io.read(size)
-          record_fields = get_fields(data)
-          fields[start] = record_fields
-          keys[start] = get_primary_key(data)
-        end  
-        # Score the documents
-        offset = offsets[index]
-        field_index, field_size = offset_to_field_info(offset, start, record_fields || fields[start])        
-        score = weights[field_index] / field_size  
-        scores[start] += score
-      }      
-      # Sort based on the scores (key, value)
-      sorted_offsets = scores.sort_by{|start,score| -score}
-      # Return the results as key, fields blocks
-      sorted_offsets.map {|start,score| [keys[start], fields[start]] } 
-    end
-
-    def rank_offsets_probabilistic(offsets, weights, limit = 10)
-      t1 = Time.new
-      size = offsets.size
-      scores = Hash.new
-      offsets.sort!      
-      offsets.each_with_index {|offset, index|
-        if (index == 0)
-          scores[offset] = (offsets[index+1] - offset) * 2
-        elsif (index == size-1)
-          scores[offset] = (offset - offsets[index-1]) * 2
-        else
-          left = offset - offsets[index-1]
-          right = offsets[index+1] - offset
-          scores[offset] = left + right
-          # scores[offset] = left < right ? left : right
-        end  
-      }
-      sorted_offsets = scores.sort_by{|start,score| score}
-      keys = Hash.new
-      blocks = Array.new
-      index = 0
-      while (blocks.size < limit)
-        break if index >= sorted_offsets.size
-        record_data = offset_to_record_data(sorted_offsets[index][0]) 
-        primary_key = get_primary_key(record_data)
-        unless keys.has_key?(primary_key)
-          keys[primary_key] = 1
-          fields = get_fields(record_data).push(sorted_offsets[index][1])
-          blocks << [primary_key, fields]
-        end  
-        index += 1
-      end  
-      blocks
-    end
-            
     def dump_data(&block)
       blocksize = 32768
       @io.pos = 0

@@ -15,7 +15,7 @@ module FateSearch # :nodoc:
 
       # Override +append_suffixes+ in descendent classes to fill the array
       # and return it with the appropriate suffixes
-      def append_suffixes(array, text, offset); end
+      def append_suffixes(array, text, offset, base_offset, index); end
       
     end
   end

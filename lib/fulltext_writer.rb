@@ -51,7 +51,7 @@ module FateSearch # :nodoc:
       fields.each_with_index {|field,index|
         data = field || ''
         suffix_offset = store_field(data)
-        suffix_array_writer.add_suffixes(analyzers[index], data, suffix_offset)
+        suffix_array_writer.append_suffixes(analyzers[index], data, suffix_offset, base_offset, index)
       }  
       write_footer((@io.pos-base_offset)+5)
     end

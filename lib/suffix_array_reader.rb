@@ -12,7 +12,7 @@ module FateSearch # :nodoc:
     # A hit is a structure that represents single match for a term. The structure
     # contains the term, the index of the term in the suffix array, the offset of
     # the term inthe fulltext and the fulltext reader.
-    class Hit < Struct.new(:term, :index, :offset, :fulltext_reader)
+    class Hit < Struct.new(:term, :index, :offset, :record_offset, :field_id, :fulltext_reader)
 
       # The context of the hit. This will grab the textual information from the
       # full text reader on either side of the match up to +size+.
@@ -50,7 +50,8 @@ module FateSearch # :nodoc:
         fulltext = self.fulltext_reader
         suffix_array = self.suffix_array_reader
         self.from_index.upto(self.to_index - 1) do |index|
-          yield Hit.new(term, index, suffix_array.index_to_offset(index), fulltext)
+          info = suffix_array_reader.index_to_info(index)
+          yield Hit.new(term, index, info[0], info[1], info[2], fulltext)
         end
       end
 
@@ -58,7 +59,8 @@ module FateSearch # :nodoc:
         index += self.size if index < 0
         index = from_index + index
         if index < to_index && index >= from_index
-          Hit.new(self.term, index, self.suffix_array_reader.index_to_offset(index), self.fulltext_reader)
+          info = suffix_array_reader.index_to_info(index)
+          Hit.new(self.term, index, info[0], info[1], info[2], self.fulltext_reader)
         else
           nil
         end
@@ -80,10 +82,15 @@ module FateSearch # :nodoc:
       end
       
       def [](index)
+        @suffixes_io.pos = @base + index * 12
+        @suffixes_io.read(12).unpack("VVV")
+      end
+      
+      def offset(index)
         # 4 = size of a single long, the suffixes are a sequence of longs that 
         # represent offsets into the fulltext
-        @suffixes_io.pos = @base + index * 4
-        @suffixes_io.read(4).unpack("V")[0]
+        @suffixes_io.pos = @base + index * 12
+        @suffixes_io.read(4).unpack("V")      
       end
     end
 
@@ -99,7 +106,7 @@ module FateSearch # :nodoc:
     def count_hits(term)
       prepared_term = @comparator.prepare(term)
       suffix_index = binary_search(prepared_term, 0, @suffixes.size)
-      offset = @suffixes[suffix_index]
+      offset = index_to_offset(suffix_index)
       if @comparator.prepare(@fulltext_reader.get_data(offset, term.size)) == prepared_term
         to = binary_search_upper(prepared_term, 0, @suffixes.size)
         to - suffix_index
@@ -111,7 +118,7 @@ module FateSearch # :nodoc:
     def find_all(term)
       prepared_term = @comparator.prepare(term)
       suffix_index = binary_search(prepared_term, 0, @suffixes.size)
-      offset = @suffixes[suffix_index]
+      offset = index_to_offset(suffix_index)
       if @comparator.prepare(@fulltext_reader.get_data(offset, term.size)) == prepared_term
         to = binary_search_upper(prepared_term, 0, @suffixes.size)
         Hits.new(term, suffix_index, to, @fulltext_reader, self)
@@ -123,7 +130,7 @@ module FateSearch # :nodoc:
     def find_first(term)
       prepared_term = @comparator.prepare(term)
       suffix_index = binary_search(prepared_term, 0, @suffixes.size)
-      offset = @suffixes[suffix_index]
+      offset = index_to_offset(suffix_index)
       if @comparator.prepare(@fulltext_reader.get_data(offset, term.size)) == prepared_term
         Hit.new(term, suffix_index, offset, @fulltext_reader)
       else
@@ -131,20 +138,21 @@ module FateSearch # :nodoc:
       end
     end
 
-    def find_next(hit)
+    def index_to_offset(suffix_index)
+      @suffixes.offset(suffix_index)
     end
 
-    def index_to_offset(suffix_index)
+    def index_to_info(suffix_index)
       @suffixes[suffix_index]
     end
 
-    def hits_to_offsets(hits)
-      # 4 = size of a single long, the suffixes are a sequence of longs that 
-      # represent offsets into the fulltext
+    def hits_to_infos(hits)
+      # 12 = 3 * size of a single long, the suffixes are a sequence of longs that 
+      # represent offsets into the fulltext with records offsets and field ids
       from = hits.from_index
       to   = hits.to_index
-      @io.pos = @suffixes.base + 4 * from
-      @io.read((to - from) * 4).unpack("V*")
+      @io.pos = @suffixes.base + 12 * from
+      @io.read((to - from) * 12).unpack("V*")
     end
 
     def dump_data
@@ -185,7 +193,7 @@ module FateSearch # :nodoc:
       tsize = term.size
       while from < to
         middle = (from + to) / 2
-        pivot = @comparator.prepare(@fulltext_reader.get_data(@suffixes[middle], tsize))
+        pivot = @comparator.prepare(@fulltext_reader.get_data(@suffixes.offset(middle), tsize))
         if term <= pivot
           to = middle
         else
@@ -200,7 +208,7 @@ module FateSearch # :nodoc:
       tsize = term.size
       while from < to
         middle = (from + to) / 2
-        pivot = @comparator.prepare(@fulltext_reader.get_data(@suffixes[middle], tsize))
+        pivot = @comparator.prepare(@fulltext_reader.get_data(@suffixes.offset(middle), tsize))
         if term < pivot # upper does not include pivot
           to = middle
         else
@@ -234,7 +242,7 @@ module FateSearch # :nodoc:
           if term > pivot
             from = middle + 1
           else 
-            pivot = @comparator.prepare(@fulltext_reader.get_data(@suffixes[middle], term.size))
+            pivot = @comparator.prepare(@fulltext_reader.get_data(@suffixes.offset(middle), tsize))
             if term <= pivot
               to = middle
             else
@@ -269,7 +277,7 @@ module FateSearch # :nodoc:
           if term > pivot
             from = middle + 1
           else 
-            pivot = @comparator.prepare(@fulltext_reader.get_data(@suffixes[middle], term.size))
+            pivot = @comparator.prepare(@fulltext_reader.get_data(@suffixes.offset(middle), tsize))
             if term < pivot # upper does not include pivot
               to = middle
             else

@@ -46,9 +46,9 @@ module FateSearch # :nodoc:
     # Add suffixes to the existing array. The +analyzer+ is used to parse the
     # +data+ to find the suffixes and append the offsets to the internal array.
     # The +offset+ is the starting offset of the +data+ in the source text.
-    def add_suffixes(analyzer, data, offset)
+    def append_suffixes(analyzer, data, offset, base_offset, index)
       @need_sort = true
-      analyzer.append_suffixes(@suffixes, data, offset)
+      analyzer.append_suffixes(@suffixes, data, offset, base_offset, index)
     end
 
     # Sort and dump the suffixes to suffix file specified in the path or to the
@@ -83,18 +83,19 @@ module FateSearch # :nodoc:
     end
 
     # Dump the inline suffixes to the current input/output stream. The data is
-    # written as a null padded ascii string which is +inline_suffix_size+ long.
+    # written as a null padded ascii `string which is +inline_suffix_size+ long.
     # TODO, check that we should be stepping to -1.
     def dump_inline_suffixes(io, fulltext)
       0.step(@suffixes.size-1, @block_size) do |suffix_idx|
-        io.write([fulltext[@suffixes[suffix_idx], @inline_suffix_size]].pack("a#{@inline_suffix_size}"))
+        io.write([fulltext[@suffixes[suffix_idx][0], @inline_suffix_size]].pack("a#{@inline_suffix_size}"))
       end
     end
 
     # Write the suffixes in slices (for filesystem speed?). The suffixes are 
     # written as a series of longs.
     def dump_suffix_array(io)
-      @suffixes.each_slice(1024){|suffixes| io.write(suffixes.pack("V*")) }
+      flat = @suffixes.flatten
+      flat.each_slice(1024*3){|suffixes| io.write(suffixes.pack("V*")) }
     end
 
     # Add additional padding (nulls, \0) to the 16-byte
@@ -113,7 +114,7 @@ module FateSearch # :nodoc:
       k = $KCODE
       fulltext = fulltext.downcase
       tsize = fulltext.size
-      @suffixes = @suffixes.sort_by{|offset| fulltext[offset, tsize - offset]}
+      @suffixes = @suffixes.sort_by{|suffix| fulltext[suffix[0], tsize - suffix[0]]}
     ensure
       $KCODE = k if k
     end

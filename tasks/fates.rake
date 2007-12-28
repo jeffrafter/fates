@@ -48,7 +48,7 @@ namespace :fates do
     puts "Indexing contacts"
     t4 = Time.new
     fragment  = FateSearch::FragmentWriter.new(:path => "#{BASE_PATH}-0000000", :analyzers => analyzers)
-    rows.each {|row| fragment.add(row[0].to_i, row[1..2]) }
+    rows.each {|row| fragment.add(row[0].to_i, [row[2], row[1]]) }
 
     puts "Writing indexes"
     t5 = Time.new
@@ -70,9 +70,7 @@ namespace :fates do
     q = ENV['QUERY']
           
     # Probabilistic sorting is useful for large data sets
-    default_sorting = ENV['SORT'] == 'd'
-    probabilistic_sorting = ENV['SORT'] == 'p'
-    fragment_sorting = ENV['SORT'] == 'f'
+    default_sorting = ENV['SORT'] == 'y'
 
     # Lookup the most recent index files
     latest = Dir["#{BASE_PATH}-*"].sort.last
@@ -94,23 +92,16 @@ namespace :fates do
     t3 = Time.new
     show_all = ENV['ALL'] == 'yes'
     if hits && hits.size > 0
-      if default_sorting || probabilistic_sorting || fragment_sorting
+      if default_sorting 
         # Build a weight table for ranking (initialize for nudging certain fields)
-        weights = [10000000, 30000000] # :first_name, :last_name
-        offsets = suffix_array_reader.hits_to_offsets(hits)
-        if probabilistic_sorting
-          sorted = fulltext_reader.rank_offsets_probabilistic(offsets, weights)
-        elsif fragment_sorting
-          sorted = fulltext_reader.rank_offsets_by_fragment(offsets, weights)          
-        else
-          sorted = fulltext_reader.rank_offsets(offsets, weights)
-        end
+        weights = [20000000, 100000000] # :first_name, :last_name
+        sorted = fulltext_reader.rank_offsets(hits, weights, q)
         puts "Showing #{sorted.size <= 10 || show_all ? 'all' : 'top 10'} matches of #{sorted.size}:"
         count = sorted.size > 10 && show_all ? sorted.size : 10
         0.upto(count) { |i| 
           if i < sorted.size 
-            primary_key, fields = sorted[i]
-            p "#{primary_key}: #{fields.join(' ')}"
+            primary_key, fields, score = sorted[i]
+            p "#{primary_key}: #{fields.join(' ')}, (#{score})"
           end  
         }  
       else  
@@ -120,7 +111,8 @@ namespace :fates do
           if i < hits.size 
             # Get full fields            
             # If you don't need all of the fields or key, use hits[i].context(30)
-            record_data = fulltext_reader.offset_to_record_data(hits[i].offset) 
+            # record_data = fulltext_reader.offset_to_record_data(hits[i].offset) 
+            record_data = fulltext_reader.hit_to_record_data(hits[i]) 
             primary_key = fulltext_reader.get_primary_key(record_data) 
             fields = fulltext_reader.get_fields(record_data) 
             p "#{primary_key}: #{fields.join(' ')}"
