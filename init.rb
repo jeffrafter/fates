@@ -5,3 +5,5 @@ require 'fulltext_reader'
 require 'analysis/analyzer'
 require 'analysis/simple_identifier_analyzer'
 require 'analysis/whitespace_analyzer'
+require 'fates'
+ActiveRecord::Base.send :include, FateSearch::Extensions
