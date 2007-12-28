@@ -82,7 +82,6 @@ module FateSearch
         data = @io.read(size)        
         blocks << [get_primary_key(data), get_fields(data), score]
       }  
-      puts "Ranking took (#{Time.new - t1}) seconds"
       blocks
     end
 
