@@ -140,38 +140,5 @@ namespace :fates do
     rdoc.rdoc_files.include('README')
     rdoc.rdoc_files.include('lib/**/*.rb')
   end
-
-=begin  
-  namespace :spec do
-    
-    $LOAD_PATH << File.join(File.dirname(__FILE__), '..', '..', 'rspec', 'lib') 
-    require 'spec'
-    require 'spec/rake/spectask'
-
-    module Spec
-      class << self; def run; false; end; end
-    end          
-
-    desc 'Test the specifications of the fate search plugin.'
-    Spec::Rake::SpecTask.new(:spec) do |spec|
-      spec.spec_opts = ['--options', 'spec/spec.opts']
-      spec.spec_files = FileList['spec/models/*_spec.rb']
-    end
-
-    desc 'Document the specifications of the fate search plugin.'
-    Spec::Rake::SpecTask.new(:doc) do |spec|
-      spec.spec_opts = ['--format', 'specdoc', '--dry-run']
-      spec.spec_files = FileList['spec/**/*_spec.rb']
-    end
-
-    desc 'Review coverage for the specifications of the fate search plugin.'
-    Spec::Rake::SpecTask.new(:rcov) do |spec|
-      spec.spec_files = FileList['../spec/**/*_spec.rb']
-      spec.rcov = true
-      spec.rcov_opts = lambda do
-        IO.readlines("spec/rcov.opts").map {|l| l.chomp.split " "}.flatten
-      end
-    end
-  end
-=end  
+ 
 end
