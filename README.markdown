@@ -98,7 +98,6 @@ look for names from the spec/samples/contacts.csv file.
 
 TODO
 ----
-
 Gemify this with Jeweler. Consider some native extensions (based on the FTSearch
 native extensions). In general lots of profiling was done around the sorting
 and  initial indexing but as always you can still optimize.
@@ -106,7 +105,6 @@ and  initial indexing but as always you can still optimize.
 
 USING WITH ACTIVERECORD
 -----------------------
-
 I originally built ActiveRecord extensions for fates, but have removed them as
 they would need additional work. As a sample though, you can still install the
 library as a plugin:
@@ -142,5 +140,5 @@ You should now be able to run full text searches:
 
 LICENSE
 -------
-
 Distribution and modification subject to the same terms as Ruby.
+
