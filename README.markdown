@@ -95,16 +95,10 @@ time was 0.060236 versus 0.000598.
 Note: currently merged (delta) indexes are not supported. Search allows you to 
 look for names from the spec/samples/contacts.csv file. 
 
-
-TODO
-----
 Gemify this with Jeweler. Consider some native extensions (based on the FTSearch
 native extensions). In general lots of profiling was done around the sorting
 and  initial indexing but as always you can still optimize.
 
-
-USING WITH ACTIVERECORD
------------------------
 I originally built ActiveRecord extensions for fates, but have removed them as
 they would need additional work. As a sample though, you can still install the
 library as a plugin:
@@ -118,12 +112,12 @@ timing). Next you need to build the index. In the following I build an index for
 the PersonName model:
 
 <pre><code>white_space = FateSearch::Analysis::WhitespaceAnalyzer.new 
-  analyzers = [white_space, white_space]
-  fragment = FateSearch::FragmentWriter.new(
-    :path => "/tmp/index/fates/names-0000000", :analyzers => analyzers)
-  names = PersonName.find(:all)
-  names.each {|name| fragment.add(name.id, [name.given_name, name.family_name])}
-  fragment.finish!
+analyzers = [white_space, white_space]
+fragment = FateSearch::FragmentWriter.new(
+  :path => "/tmp/index/fates/names-0000000", :analyzers => analyzers)
+names = PersonName.find(:all)
+names.each {|name| fragment.add(name.id, [name.given_name, name.family_name])}
+fragment.finish!
 </code></pre>  
 
 Save this file in the lib folder of your rails application as "index.rb". Run 
@@ -138,7 +132,4 @@ You should now be able to run full text searches:
 <pre><code>rake fates:search BASE_PATH='/tmp/index/fates/names' QUERY='banda'
 </code></pre>  
 
-LICENSE
--------
 Distribution and modification subject to the same terms as Ruby.
-
