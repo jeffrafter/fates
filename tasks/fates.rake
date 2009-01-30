@@ -1,10 +1,10 @@
 # See README for Copyright and License information 
-
 require 'rake/testtask'
 require 'rake/rdoctask'
+require File.expand_path(File.dirname(__FILE__) + '/../init')
 
-FATE_PATH = File.expand_path(File.dirname(__FILE__) + "/../index/fates")
-BASE_PATH = File.expand_path(File.dirname(__FILE__) + "/../index/fates/contacts")
+FATE_PATH = ENV['FATE_PATH'] || File.expand_path(File.dirname(__FILE__) + "/../index/fates")
+BASE_PATH = ENV['BASE_PATH'] || File.expand_path(File.dirname(__FILE__) + "/../index/fates/contacts")
 
 namespace :fates do
   desc "Randomize the contacts"
@@ -127,8 +127,6 @@ namespace :fates do
     puts "Needed to load cache (#{t2-t1})"
     puts "Needed to find all matches (#{t3-t2})"
     puts "Needed to print matches (#{t4-t3})"
-    ## puts "Needed to find, rank, and map ids (#{d3})"
-    ## puts "Needed to lookup matches in database (#{Time.new - t4})"
     puts "Total time (#{Time.new - t1})"
   end        
 
