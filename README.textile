@@ -1,1 +1,37 @@
-README
+Copyright (C) 2006 Mauricio Fernandez <mfp@acm.org>
+Copyright (C) 2007 Jeff Rafter <jeff@jeffrafter.com> (additions, revisions)
+
+Fate Search is based on FTSearch by Mauricio Fernandez which can be
+found at http://www.eigenclass.org/
+
+Fate Search uses a suffix-array, so if you look for e.g. "fa", it'll match
+faq, fat, fat_entry, ..., making it equivalent to looking for "fa*" with
+Ferret.
+
+Fate Search does phrasal search naturally, if you're lookup for "big array", 
+just enter it (without the quotes); with ferret-lookup.rb, you *have* to
+surround the phrase with quotes.
+
+== TRY IT OUT ==
+You can test things out using the rake tasks
+
+  rake fates:index
+  rake fates:search QUERY='Smith'
+  rake fates:search QUERY='Smith' SORT=y
+
+If you apply sorting the results will be sorted and ranked but the printing 
+(tree navigation) will take considerably longer.
+
+Note: currently merged (delta) indexes are not supported. Search allows you to 
+look for names from the spec/samples/contacts.csv file. 
+
+== TODO ==
+Gemify this with Jeweler. Consider some native extensions (based on the FTSearch
+native extensions). In general lots of profiling was done around the sorting
+and  initial indexing but as always you can still optimize.
+
+I originally built ActiveRecord extensions for fates, but have removed them as
+they would need additional work.
+
+== LICENSE ==
+Distribution and modification subject to the same terms as Ruby.
