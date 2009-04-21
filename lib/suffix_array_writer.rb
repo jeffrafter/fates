@@ -2,6 +2,7 @@
 
 require 'enumerator'
 require 'in_memory_writer'
+require 'comparison/comparator'
 
 module FateSearch # :nodoc:
 
@@ -12,7 +13,8 @@ module FateSearch # :nodoc:
 
     DEFAULT_OPTIONS = {
       :block_size => 32,
-      :inline_suffix_size => 8
+      :inline_suffix_size => 8,
+      :shard_chars => 4
     }
     
     # Create a new +SuffixArrayWriter+ and pass in options. If you do not include
@@ -28,8 +30,10 @@ module FateSearch # :nodoc:
       @suffixes           = []
       @block_size         = options[:block_size]
       @inline_suffix_size = options[:inline_suffix_size]
+      @shard_chars        = options[:shard_chars]
       @finished           = false
       @need_sort          = false
+      @comparator         = FateSearch::Comparison::Comparator.new      
       initialize_in_memory_buffer
     end
 
@@ -65,37 +69,66 @@ module FateSearch # :nodoc:
 
   private
 
+    # Suffixes will must be sharded into two character sets to reduce file size 
+    # while simultaneously reducing connections when binary searching
+    def dump_suffixes(fulltext)      
+      # If we are writing to memory then dump the whole set
+      unless @path
+        dump_suffix_set(@suffixes, fulltext)
+        return
+      end
+      # Loop through to build two-char shard groups for writing
+      FileUtils.mkdir_p(@path)
+      last_suffix = nil
+      last_index = 0
+      index = 0
+      while index < @suffixes.size do
+        # Single character suffixes get their own file I think
+        term = fulltext[@suffixes[index][0], @shard_chars]
+        current_suffix = @comparator.prepare(term.gsub(/(\0|\n|\s)/, ''))
+        last_suffix ||= current_suffix
+        if last_suffix != current_suffix || index == @suffixes.size-1
+          dump_suffix_set(@suffixes[last_index, index-last_index], fulltext, @path + '/' + last_suffix)
+          last_suffix = current_suffix          
+          last_index = index
+        end
+        index += 1
+      end 
+    end   
+    
     # Writes the suffixes to the file specified in the path or to the in memory
     # buffer. If writing to a file, the file will be truncated. On windows/dos
     # the file will be written in binary mode. The suffixes file will contain
     # three longs in the header, followed by the inline suffix blocks, followed
     # by a pad to get to the 16-byte (I think this is for improved file system
-    # speed when writing?) followed by the actual suffix array.
-    def dump_suffixes(fulltext)
-      io = @path ? File.open(@path, "wb") : @memory_io
+    # speed when writing?) followed by the actual suffix array. Suffixes will
+    def dump_suffix_set(suffixes, fulltext, path = nil)
+      io = path ? File.open(path, "wb") : @memory_io
       # Number of suffixes, block size for each suffix, 
-      io.write([@suffixes.size, @block_size || 0, @inline_suffix_size].pack("VVV")) 
-      dump_inline_suffixes(io, fulltext) if @block_size && @block_size > 0
-      add_padding(io)
-      dump_suffix_array(io)
-    ensure
-      io.close if @path
+      begin
+        io.write([suffixes.size, @block_size || 0, @inline_suffix_size].pack("VVV")) 
+        dump_inline_suffixes(io, suffixes, fulltext) if @block_size && @block_size > 0
+        add_padding(io)
+        dump_suffix_array(io, suffixes)
+      ensure
+        io.close if path
+      end  
     end
 
     # Dump the inline suffixes to the current input/output stream. The data is
-    # written as a null padded ascii `string which is +inline_suffix_size+ long.
+    # written as a null padded ascii string which is +inline_suffix_size+ long.
     # TODO, check that we should be stepping to -1.
-    def dump_inline_suffixes(io, fulltext)
-      0.step(@suffixes.size-1, @block_size) do |suffix_idx|
-        io.write([fulltext[@suffixes[suffix_idx][0], @inline_suffix_size]].pack("a#{@inline_suffix_size}"))
+    def dump_inline_suffixes(io, suffixes, fulltext)
+      0.step(suffixes.size-1, @block_size) do |suffix_idx|
+        io.write([fulltext[suffixes[suffix_idx][0], @inline_suffix_size]].pack("a#{@inline_suffix_size}"))
       end
     end
 
     # Write the suffixes in slices (for filesystem speed?). The suffixes are 
     # written as a series of longs.
-    def dump_suffix_array(io)
-      flat = @suffixes.flatten
-      flat.each_slice(1024*3){|suffixes| io.write(suffixes.pack("V*")) }
+    def dump_suffix_array(io, suffixes)
+      flat = suffixes.flatten
+      flat.each_slice(1024*3){|items| io.write(items.pack("V*")) }
     end
 
     # Add additional padding (nulls, \0) to the 16-byte

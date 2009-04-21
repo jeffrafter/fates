@@ -25,6 +25,7 @@ module FateSearch # :nodoc:
       def text(size)
         strip_markers(self.fulltext_reader.get_data(offset, size), 0)
       end    
+ 
     private
       
       # Fields in the full text rader are delimited with null characters. These
@@ -95,25 +96,27 @@ module FateSearch # :nodoc:
     end
 
     def initialize(fulltext_reader, options = {})
+      @shard_size = options[:shard_size] || 4
       @comparator = FateSearch::Comparison::Comparator.new
       @fulltext_reader = fulltext_reader
       unless options[:path] || options[:io]
         raise ArgumentError, "Need either the path to the suffix array file or an input/output stream."
       end
-
-      # setup io
-      if options[:path]
-        @io = File.open(options[:path], "rb")
+      
+      if (options[:path])
+        @base_path = options[:path]
+        @cache = {}
       else
         @io = options[:io]
+        read_header_and_suffixes        
       end
-      
-      # load
-      read_header_and_suffixes
     end
-
+    
     def count_hits(term)
       prepared_term = @comparator.prepare(term)
+      shard = prepared_term.gsub(/(\0|\s|\n)/, '').slice(0, @shard_size)
+      raise "Search term must be at least #{@shard_size} characters" unless shard.size >= @shard_size
+      prepare(@base_path + '/' + shard)
       suffix_index = binary_search(prepared_term, 0, @suffixes.size)
       offset = index_to_offset(suffix_index)
       if @comparator.prepare(@fulltext_reader.get_data(offset, term.size)) == prepared_term
@@ -126,6 +129,9 @@ module FateSearch # :nodoc:
 
     def find_all(term)
       prepared_term = @comparator.prepare(term)
+      shard = prepared_term.gsub(/(\0|\s|\n)/, '').slice(0, @shard_size)
+      raise "Search term must be at least #{@shard_size} characters" unless shard.size >= @shard_size
+      prepare(@base_path + '/' + shard)
       suffix_index = binary_search(prepared_term, 0, @suffixes.size)
       offset = index_to_offset(suffix_index)
       if @comparator.prepare(@fulltext_reader.get_data(offset, term.size)) == prepared_term
@@ -138,6 +144,9 @@ module FateSearch # :nodoc:
 
     def find_first(term)
       prepared_term = @comparator.prepare(term)
+      shard = prepared_term.gsub(/(\0|\s|\n)/, '').slice(0, @shard_size)
+      raise "Search term must be at least #{@shard_size} characters" unless shard.size >= @shard_size
+      prepare(@base_path + '/' + shard)
       suffix_index = binary_search(prepared_term, 0, @suffixes.size)
       offset = index_to_offset(suffix_index)
       if @comparator.prepare(@fulltext_reader.get_data(offset, term.size)) == prepared_term
@@ -147,6 +156,8 @@ module FateSearch # :nodoc:
       end
     end
 
+    # Don't call these directly!
+  
     def index_to_offset(suffix_index)
       @suffixes.offset(suffix_index)
     end
@@ -162,6 +173,37 @@ module FateSearch # :nodoc:
       to   = hits.to_index
       @io.pos = @suffixes.base + 12 * from
       @io.read((to - from) * 12).unpack("V*")
+    end
+
+  
+
+
+  protected
+
+    # Eventually I should make this not suck
+    def prepare(path)
+      # Look for a cached version            
+      if item = @cache[path]
+        @io = item[:io]
+        @total_suffixes = item[:total_suffixes]         
+        @block_size = item[:block_size]
+        @inline_suffix_size = item[:inline_block_size]
+        @inline_suffixes = item[:inline_suffixes]
+        @suffixes = item[:suffixes]      
+        return
+      end
+      
+      # Not in cache, lets build it and cache it
+      @io = File.open(path, "rb")
+      read_header_and_suffixes        
+      @cache[:path] = {
+        :io => @io, 
+        :total_suffixes => @total_suffixes,
+        :block_size => @block_size,
+        :inline_suffix_size => @inline_suffix_size,
+        :inline_suffixes => @inline_suffixes,
+        :suffixes => @suffixes
+      }
     end
 
     def dump_data
