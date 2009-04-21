@@ -2,16 +2,16 @@
 
 module FateSearch
   class FulltextReader
-    DEFAULT_OPTIONS = {
-      :path => nil,
-      :io   => nil,
-    }
+
     def initialize(options = {})
-      options = DEFAULT_OPTIONS.merge(options)
       unless options[:path] || options[:io]
         raise ArgumentError, "Need either the path to the suffix array file or an input/output stream."
       end
-      init_internal_structures(options)
+      if options[:path]
+        @io = File.open(options[:path], "rb")
+      else
+        @io = options[:io]
+      end
     end
 
     def get_data(offset, size)
@@ -33,7 +33,7 @@ module FateSearch
     end  
     
     def get_primary_key(data_block)
-      # Header: 8 == total field data size, primary key
+      # Primary key is the second offset in the header, stored as a long
       primary_key = data_block[4..7].unpack("V")[0]
     end
 
@@ -54,7 +54,6 @@ module FateSearch
     end
         
     def rank_offsets(hits, weights, term, limit = 10, compare_size = false)
-      t1 = Time.new
       scores = Hash.new{|h,k| h[k] = 0.0}
       current = hits.size
       size = term.size.to_f
@@ -90,7 +89,7 @@ module FateSearch
       @io.pos = 0
       begin
         size = @io.stat.size - 1
-      rescue NoMethodError # try with StringIO's interface
+      rescue NoMethodError 
         size = @io.string.size - 1
       end
       read = 0
@@ -102,15 +101,6 @@ module FateSearch
     end
 
   private
-    def init_internal_structures(options)
-      if options[:path]
-        @io = File.open(options[:path], "rb")
-      else
-        @io = options[:io]
-      end
-    end
-
-    
     # TODO this could be replaced with a single seek to the index in a record map
     # Instead of passing offset, the suffix index would be compared to the map
     # A simpler solution is to double the size of the suffix array and store the
@@ -142,19 +132,5 @@ module FateSearch
       end        
       [record_start, size]
     end  
-
-    def offset_to_field_info(offset, start, fields)
-      offset_from_start = offset - start
-      pos = 8
-      fields.each_with_index { |field, index|
-        size = field.size + 5
-        if pos + size > offset_from_start
-          return [index, size]
-        end
-        pos += size
-      }
-      return [nil, nil]
-    end
-
   end
 end

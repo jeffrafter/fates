@@ -11,7 +11,7 @@ module FateSearch # :nodoc:
 
     # A hit is a structure that represents single match for a term. The structure
     # contains the term, the index of the term in the suffix array, the offset of
-    # the term inthe fulltext and the fulltext reader.
+    # the term in the fulltext and the fulltext reader.
     class Hit < Struct.new(:term, :index, :offset, :record_offset, :field_id, :fulltext_reader)
 
       # The context of the hit. This will grab the textual information from the
@@ -100,7 +100,16 @@ module FateSearch # :nodoc:
       unless options[:path] || options[:io]
         raise ArgumentError, "Need either the path to the suffix array file or an input/output stream."
       end
-      init_internal_structures(options)
+
+      # setup io
+      if options[:path]
+        @io = File.open(options[:path], "rb")
+      else
+        @io = options[:io]
+      end
+      
+      # load
+      read_header_and_suffixes
     end
 
     def count_hits(term)
@@ -164,14 +173,7 @@ module FateSearch # :nodoc:
 
   private
   
-    def init_internal_structures(options)
-      # setup io
-      if options[:path]
-        @io = File.open(options[:path], "rb")
-      else
-        @io = options[:io]
-      end
-      
+    def read_header_and_suffixes
       # read header
       @total_suffixes, @block_size, @inline_suffix_size = @io.read(12).unpack("VVV")
       @inline_suffixes = []

@@ -4,8 +4,7 @@ require 'strscan'
 require 'analysis/analyzer'
 
 module FateSearch # :nodoc:
-  module Analysis # :nodoc:
-    
+  module Analysis # :nodoc:    
     # Basic text analysis. Attempts to split a section of text based on 
     # basic whitespace rules. See +append_suffixes+ for more information
     class WhitespaceAnalyzer < Analyzer

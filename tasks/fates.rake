@@ -1,6 +1,4 @@
 # See README for Copyright and License information 
-require 'rake/testtask'
-require 'rake/rdoctask'
 require File.expand_path(File.dirname(__FILE__) + '/../init')
 
 FATE_PATH = ENV['FATE_PATH'] || File.expand_path(File.dirname(__FILE__) + "/../index/fates")
@@ -128,15 +126,5 @@ namespace :fates do
     puts "Needed to find all matches (#{t3-t2})"
     puts "Needed to print matches (#{t4-t3})"
     puts "Total time (#{Time.new - t1})"
-  end        
-
-  desc 'Generate documentation for the fate search plugin.'
-  Rake::RDocTask.new(:rdoc) do |rdoc|
-    rdoc.rdoc_dir = 'rdoc'
-    rdoc.title    = 'Fate Search Full Text Searching Plugin'
-    rdoc.options << '--line-numbers' << '--inline-source'
-    rdoc.rdoc_files.include('README')
-    rdoc.rdoc_files.include('lib/**/*.rb')
-  end
- 
+  end         
 end
