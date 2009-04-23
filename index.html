@@ -1,1 +1,17 @@
-My GitHub Page
+<html>
+  <head>
+    <script type="text/javascript" src="javascripts/jquery.js"></script>
+    <script type="text/javascript">
+      function search() {
+        alert("Find " + $('#search').value);
+      }
+    </script>
+  </head>
+  <body>
+    <form onsubmit="search">
+      <label for="search">Search</label>
+      <input name="search" id="search" type="text" />
+      <input type="submit" value="Search"/>
+    </form>
+  </body>
+</html>  
