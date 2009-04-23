@@ -1,4 +1,4 @@
-require File.expand_path(File.dirname(__FILE__) + "/../init")
+require File.expand_path(File.dirname(__FILE__) + "/../lib/fates")
 require 'rubygems'
 require 'test/unit'
 require 'shoulda'

@@ -1,5 +1,5 @@
 # See README for Copyright and License information 
-require File.expand_path(File.dirname(__FILE__) + '/../init')
+require File.expand_path(File.dirname(__FILE__) + '/../lib/fates')
 
 FATE_PATH = ENV['FATE_PATH'] || File.expand_path(File.dirname(__FILE__) + "/../index/fates")
 BASE_PATH = ENV['BASE_PATH'] || File.expand_path(File.dirname(__FILE__) + "/../index/fates/contacts")
@@ -24,7 +24,6 @@ namespace :fates do
   task :index do
     require 'fileutils'
     require 'fastercsv'
-    require 'lib/analysis/whitespace_analyzer'
     sample_path = File.expand_path(File.dirname(__FILE__) + "/../spec/samples/contacts.csv")
     
     # Protect against rm -rf /
