@@ -1,12 +1,11 @@
 # See README for Copyright and License information
 
-require 'in_memory_writer'
+require 'chunked_io'
 
 module FateSearch # :nodoc:
   # FulltextWriter allows you to store field information and data in an input/output
   # stream, that can be referenced in a suffix array reader and suffix array writer.
   class FulltextWriter 
-    include InMemoryWriter
    
     # Read-only path. If the +FulltextWriter+ was created with a :path option,
     # the path will be relfected here, otherwise the path will be nil and the 
@@ -21,22 +20,11 @@ module FateSearch # :nodoc:
     # Valid options:
     # [<tt>:path</tt>] The file that the full text field information will be written to.
     def initialize(options = {})
+      @text = ''
       @path = options[:path]
-      if @path
-        @io = File.open(@path, "wb")
-      else
-        initialize_in_memory_buffer
-        @io = @memory_io
-      end
-    end
-
-    # Use a full text reader to initialize the data in this writer. This 
-    # operation can happen before or after records have been added to the 
-    # writer.
-    def merge(fulltext_reader)
-      fulltext_reader.dump_data do |data|
-        @io.write data  
-      end
+      FileUtils.mkdir_p(@path)
+      @io = ChunkedIo.open(@path, "wb")
+      @cache = File.open(@path + "/fulltext", "wb")
     end
 
     # Add the field information for an entry to the fulltext data file. The 
@@ -58,14 +46,26 @@ module FateSearch # :nodoc:
 
     # Write a trailing null character and close the file.
     def finish!
-      @io.write "\0"
+      write "\0"
       if (@path)
         @io.fsync
         @io.close
+        @cache.fsync
+        @cache.close
       end  
     end
     
+    def text
+      File.open(@path + "/fulltext", "rb"){|f| f.read}
+    end
+    
   private
+  
+    # Pass all of the writes through here so we can cache the fulltext, okay?
+    def write(data)      
+      @cache.write data
+      @io.write data
+    end
   
     # Write the total size of the record (for seeking) as a single long. To 
     # calculate the total size, select all of the fields from the fields array
@@ -76,14 +76,14 @@ module FateSearch # :nodoc:
       total_size = fields.inject(0){|sum,field| sum += (field || '').size + 5}
       # 13 == record header + record footer
       total_size += 13
-      @io.write [total_size, primary_key].pack("VV") 
+      write [total_size, primary_key].pack("VV") 
     end
 
     # Write a leading null and the size of the record (for seeking) as a 
     # single long. 
     def write_footer(size)
-      @io.write [size].pack("V")
-      @io.write "\0"
+      write [size].pack("V")
+      write "\0"
     end
         
     # Write the field to the current input/output stream. Each field will be 
@@ -92,10 +92,10 @@ module FateSearch # :nodoc:
     # This function returns the offset to the start of the offset of the field 
     # header in the input/output stream.
     def store_field(data)
-      @io.write [data.size].pack("V") 
+      write [data.size].pack("V") 
       offset = @io.pos
-      @io.write data
-      @io.write "\0"
+      write data
+      write "\0"
       offset 
     end
   end

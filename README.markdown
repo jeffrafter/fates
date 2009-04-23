@@ -92,7 +92,7 @@ If you apply sorting the results will be sorted and ranked but the printing
 (tree navigation) will take considerably longer. In the above example the print
 time was 0.060236 versus 0.000598.
 
-Note: currently merged (delta) indexes are not supported. Search allows you to 
+Note: currently delta indexes are not supported. Search allows you to 
 look for names from the spec/samples/contacts.csv file. 
 
 Gemify this with Jeweler. Consider some native extensions (based on the FTSearch

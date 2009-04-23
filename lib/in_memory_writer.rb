@@ -1,4 +1,5 @@
 # See README for Copyright and License information
+raise "Temporarily Disabled"
 
 require 'stringio'
 

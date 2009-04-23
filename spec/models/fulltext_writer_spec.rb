@@ -45,16 +45,5 @@ describe :fulltext_writer do
     @suffix_array_writer.instance_variable_get('@suffixes').should == [16, 24]
   end  
   
-  it "should merge the fulltext from a fulltext reader" do
-    @w = FTSearch::FulltextWriter.new
-    @w.add_document(1, {:primary_key => 1, :sample_field => 'A'}, @field_map, @field_infos, @suffix_array_writer, @map_writer)
-    @w.finish!
-    io = @w.io
-    io.seek(0, 0)
-    @w2 = FTSearch::FulltextWriter.new
-    @w2.merge(FTSearch::FulltextReader.new(:io => io))
-    @w2.finish!
-    @w2.data.should == "\n\000\000\000\001\000\000\000\001\000\000\000\001\000\000\000A\000\000"
-  end  
 =end    
 end

@@ -39,24 +39,6 @@ describe :suffix_array_writer do
     @w.instance_variable_get('@suffixes').should == [24, 16]
     @w.data.should == "\002\000\000\000 \000\000\000\b\000\000\000suffixA\000\000\000\000\000\000\000\000\000\000\000\000\000\030\000\000\000\020\000\000\000"
   end
-
-  it "should merge the suffixes from a suffix array reader" do
-    @w = FateSearch::SuffixArrayWriter.new
-    @f = FateSearch::FulltextWriter.new
-    @f.add_document(1, {:sample_field => 'suffixB suffixA'}, @field_map, @field_infos, @w, @m)
-    @f.finish!
-    @w.finish!(@f.data)
-    io = @w.io
-    io.seek(0, 0)
-    lambda {@w.merge(FateSearch::SuffixArrayReader.new(@f, :io => io))}.should raise_error
-    
-    io.seek(0, 0)
-    @w2 = FateSearch::SuffixArrayWriter.new
-    @w2.merge(FateSearch::SuffixArrayReader.new(@f, :io => io))
-    @w2.instance_variable_get('@suffixes').should == [24, 16]
-    @w2.finish!(@f.data)
-    @w2.data.should == @w.data
-  end
 =end  
 
 end

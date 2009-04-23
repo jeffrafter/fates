@@ -206,13 +206,6 @@ module FateSearch # :nodoc:
       }
     end
 
-    def dump_data
-      @io.pos = @suffixes.base
-      while data = @io.read(32768)
-        yield data.unpack("V*")
-      end
-    end
-
   private
   
     def read_header_and_suffixes

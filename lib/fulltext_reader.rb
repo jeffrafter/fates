@@ -1,17 +1,13 @@
 # See README for Copyright and License information
 
+require 'chunked_io'
+
 module FateSearch
   class FulltextReader
 
     def initialize(options = {})
-      unless options[:path] || options[:io]
-        raise ArgumentError, "Need either the path to the suffix array file or an input/output stream."
-      end
-      if options[:path]
-        @io = File.open(options[:path], "rb")
-      else
-        @io = options[:io]
-      end
+      raise ArgumentError, "Need the path to the suffix array file" unless options[:path]
+      @io = ChunkedIo.open(options[:path], "rb")
     end
 
     def get_data(offset, size)
@@ -62,7 +58,8 @@ module FateSearch
         # TODO, could maybe add one more number, the suffix size, into the array
         if (compare_size)
           @io.pos = hit.offset
-          text_size = @io.gets("\0").size
+          true while @io.getc != 0
+          text_size = @io.pos - hit.offset
           diff = (size - text_size).abs
           percent_diff = 1 - (diff / size)
         end  
@@ -82,22 +79,6 @@ module FateSearch
         blocks << [get_primary_key(data), get_fields(data), score]
       }  
       blocks
-    end
-
-    def dump_data(&block)
-      blocksize = 32768
-      @io.pos = 0
-      begin
-        size = @io.stat.size - 1
-      rescue NoMethodError 
-        size = @io.string.size - 1
-      end
-      read = 0
-      while read < size
-        data = @io.read([size - read, blocksize].min)
-        read += data.size
-        yield data
-      end      
     end
 
   private
@@ -127,7 +108,7 @@ module FateSearch
           break
         else
           # Not a null, skip the field data (and trailing null)
-          @io.seek(size, IO::SEEK_CUR)
+          @io.pos = @io.pos + size
         end
       end        
       [record_start, size]

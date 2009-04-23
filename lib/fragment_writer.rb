@@ -34,17 +34,9 @@ module FateSearch
       @fulltext_writer.add(primary_key, fields, @analyzers, @suffix_array_writer)      
     end
 
-    def merge(fragment_directory)
-      raise "Cannot import old data unless the destination Fragment is empty." unless @empty
-      fulltext_reader = FulltextReader.new(:path => "#{fragment_directory}/fulltext")
-      suffix_array_reader = SuffixArrayReader.new(fulltext_reader, nil, :path => "#{fragment_directory}/suffixes")
-      @fulltext_writer.merge(fulltext_reader)
-      @suffix_array_writer.merge(suffix_array_reader)
-    end
-
     def finish!
       @fulltext_writer.finish!
-      fulltext = @fulltext_writer.data
+      fulltext = @fulltext_writer.text
       @suffix_array_writer.finish!(fulltext)
       if @path
         File.rename(@tmpdir, @path)

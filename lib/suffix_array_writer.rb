@@ -1,7 +1,6 @@
 # See README for Copyright and License information
 
 require 'enumerator'
-require 'in_memory_writer'
 require 'comparison/comparator'
 
 module FateSearch # :nodoc:
@@ -9,7 +8,6 @@ module FateSearch # :nodoc:
   # Class that allows you to append a list of suffixes to an array and write it
   # to a specified file or in memory buffer.
   class SuffixArrayWriter
-    include InMemoryWriter
 
     DEFAULT_OPTIONS = {
       :block_size => 32,
@@ -34,17 +32,6 @@ module FateSearch # :nodoc:
       @finished           = false
       @need_sort          = false
       @comparator         = FateSearch::Comparison::Comparator.new      
-      initialize_in_memory_buffer
-    end
-
-    # Load the data from an existing suffix array prior to adding suffixes using
-    # +merge+. You must pass in an existing +SuffixArrayReader+ and the current
-    # +SuffixArrayWriter+ cannot have any suffix information.
-    def merge(suffix_array_reader)
-      raise "SuffixArrayWriter must be empty to merge data from another reader" unless @suffixes.empty?
-      suffix_array_reader.dump_data do |partial_sarray|
-        @suffixes.concat partial_sarray
-      end
     end
 
     # Add suffixes to the existing array. The +analyzer+ is used to parse the
@@ -103,7 +90,7 @@ module FateSearch # :nodoc:
     # by a pad to get to the 16-byte (I think this is for improved file system
     # speed when writing?) followed by the actual suffix array. Suffixes will
     def dump_suffix_set(suffixes, fulltext, path = nil)
-      io = path ? File.open(path, "wb") : @memory_io
+      io = File.open(path, "wb")
       # Number of suffixes, block size for each suffix, 
       begin
         io.write([suffixes.size, @block_size || 0, @inline_suffix_size].pack("VVV")) 
@@ -140,8 +127,7 @@ module FateSearch # :nodoc:
 
     # Sort the suffixes based on text in the fulltext. This sorts from the
     # suffix offset to the end of the data in the full text stream? It is 
-    # possible that no sort is needed if the data was merged but no additional
-    # suffixes were added (which assumes the merged data was pre sorted)
+    # possible that no sort is needed if no additional suffixes were added 
     def sort!(fulltext)
       return unless @need_sort
       k = $KCODE
