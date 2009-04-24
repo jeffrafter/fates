@@ -1,18 +1,18 @@
 <html>
   <head>
-    <script type="text/javascript" src="/javascripts/jquery.js"></script>
-    <script type="text/javascript" src="/javascripts/bin_file_reader.js"></script>
-    <script type="text/javascript" src="/javascripts/chunked_file_reader.js"></script>
-    <script type="text/javascript" src="/javascripts/fulltext_reader.js"></script>
-    <script type="text/javascript" src="/javascripts/hits.js"></script>
-    <script type="text/javascript" src="/javascripts/suffixes.js"></script>
-    <script type="text/javascript" src="/javascripts/suffix_array_reader.js"></script>
+    <script type="text/javascript" src="./javascripts/jquery.js"></script>
+    <script type="text/javascript" src="./javascripts/bin_file_reader.js"></script>
+    <script type="text/javascript" src="./javascripts/chunked_file_reader.js"></script>
+    <script type="text/javascript" src="./javascripts/fulltext_reader.js"></script>
+    <script type="text/javascript" src="./javascripts/hits.js"></script>
+    <script type="text/javascript" src="./javascripts/suffixes.js"></script>
+    <script type="text/javascript" src="./javascripts/suffix_array_reader.js"></script>
     <script type="text/javascript">
       // These build caches so you don't want to reset them every search
       // If you were clever you would put this into a persistent frame
       var shardSize = 4;
-      var fulltextReader = new FulltextReader("/index/fates/contacts-0000000/fulltext");
-      var suffixArrayReader = new SuffixArrayReader(fulltextReader, shardSize, "/index/fates/contacts-0000000/suffixes");
+      var fulltextReader = new FulltextReader("./index/fates/contacts-0000000/fulltext");
+      var suffixArrayReader = new SuffixArrayReader(fulltextReader, shardSize, "./index/fates/contacts-0000000/suffixes");
 
       function fulltext_search() {      
         try {
