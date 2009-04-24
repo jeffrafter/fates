@@ -1,6 +1,7 @@
 # See README for Copyright and License information
 
 require 'chunked_io'
+require 'hits'
 
 module FateSearch
   class FulltextReader
@@ -22,9 +23,9 @@ module FateSearch
     end  
     
     def hit_to_record_data(hit)
-      @io.pos = hit.record_offset
+      @io.pos = hit[:record_offset]
       size = @io.read(4).unpack("V")[0]
-      @io.pos = hit.record_offset
+      @io.pos = hit[:record_offset]
       @io.read(size)
     end  
     
@@ -54,18 +55,20 @@ module FateSearch
       current = hits.size
       size = term.size.to_f
       percent_diff = 1
-      hits.each {|hit|
+      loop do
+        break if current < 1
+        hit = hits[current-1]
         # TODO, could maybe add one more number, the suffix size, into the array
         if (compare_size)
-          @io.pos = hit.offset
+          @io.pos = hit[:offset]
           true while @io.getc != 0
-          text_size = @io.pos - hit.offset
+          text_size = @io.pos - hit[:offset]
           diff = (size - text_size).abs
           percent_diff = 1 - (diff / size)
         end  
-        scores[hit.record_offset] += (weights[hit.field_id] * percent_diff) + current
+        scores[hit[:record_offset]] += (weights[hit[:field_id]] * percent_diff) + current
         current -= 1
-      }
+      end
       sorted_offsets = scores.sort_by{|offset,score| -score}
       # Return the results as data blocks
       blocks = []

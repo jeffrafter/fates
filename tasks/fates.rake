@@ -80,12 +80,12 @@ namespace :fates do
     unless ENV['COUNT'] == 'no'
       count_time = Time.new
       puts "Counting the number of hits"
-      puts "Total hits: #{suffix_array_reader.count_hits(q)} (#{Time.new - count_time})"      
+      puts "Total hits: #{suffix_array_reader.count(q)} (#{Time.new - count_time})"      
     end  
 
     puts "Looking up all matches"
     t2 = Time.new
-    hits = suffix_array_reader.find_all(q)            
+    hits = suffix_array_reader.find(q)            
     t3 = Time.new
     show_all = ENV['ALL'] == 'yes'
     if hits && hits.size > 0
