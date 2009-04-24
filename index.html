@@ -18,18 +18,23 @@
         try {
           var q = $('#search').val();
           var count = suffixArrayReader.count(q);
-          alert("Total hits: " + count);
+          var counter = 1;
+          $('#results').find('li').remove();
+          $('#count').find('span').remove();
+          $('#count').append("<span>Total hits: " + count + "</span>");
           var hits = suffixArrayReader.find(q);
           if (hits && hits.size() > 0) {
-            var text = "Showing " + ((hits.size() <= 10) ? 'all' : 'top 10') + " matches\n";
+            //var text = "Showing " + ((hits.size() <= 10) ? 'all' : 'top 10') + " matches\n";
             var total = hits.size() > 10 ? 10 : hits.size();
             for (var i=0; i<total; i++) {
               recordData = fulltextReader.hitToRecordData(hits.get(i));
               primaryKey = fulltextReader.getPrimaryKey(recordData);
               fields = fulltextReader.getFields(recordData);
-              text += "\n" + primaryKey + ": " + fields.join(' ');
+              text = primaryKey + ": " + fields.join(' ');
+              $('#results').append("<li id=\"item" + counter + "\" style=\"display:none\">" + text + "</li>");
+              $('#item' + counter).fadeIn();
+              counter += 1;
             }
-            alert(text);          
           }
         } catch(ex) {
           alert(ex + "\n" + ex.stack);
@@ -37,12 +42,45 @@
       }      
       
     </script>
+    <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      margin:15px;
+    }
+    #results {
+      width: 200px;
+      list-style-position: outside;
+      list-style-type: none;
+      padding:0px;
+      margin:0px;
+      height:155px;
+    }
+    #results li {
+      margin: 0px;
+      padding: 5px;
+      background:#efefef;
+      border-bottom:1px solid #CCC;
+      display:block;
+      cursor:pointer;
+    }
+    #results li:hover {
+      background:#FFC;
+    }
+    -->
+    </style>    
   </head>
   <body>
+    <p style="width:400px;">This is a quick sample to demonstrate javascript based fulltext searching.
+       We have an index of our 50,000 person database accessible to search.
+       You can search by name, but currently probablistic searching and 
+       multi-name searching is not enabled.</p>
+    <br>
     <form name="search_form" onsubmit="try { fulltext_search(); } finally { return false; }">
-      <label for="search">Search</label>
       <input name="search" id="search" type="text" />
       <input type="submit" value="Search"/>
     </form>
+    <div id="count" style="font-weight:bold"></div><br/>
+    <ul id="results">
+    </ul>    
   </body>
 </html>  
