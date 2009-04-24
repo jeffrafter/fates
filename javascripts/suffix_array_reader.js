@@ -5,6 +5,7 @@ function SuffixArrayReader(fulltextReader, shardSize, baseURL){
   var _shardSize = shardSize;
   var _baseURL = baseURL;
   var _cache = [];
+  var _lookups = [];
   
   var _blockSize = null;
   var _totalSuffixes = null;
@@ -13,32 +14,35 @@ function SuffixArrayReader(fulltextReader, shardSize, baseURL){
   var _suffixes = null;
   
   this.count = function(term) {
-    var preparedTerm = this.comparator(term);
-    if (!this.prepare(preparedTerm)) 
-      return 0; 
-    var suffixIndex = this.binarySearch(preparedTerm, 0, _suffixes.size());
-    var offset = this.indexToOffset(suffixIndex);
-    if (this.comparator(_fulltextReader.getData(offset, term.length)) == preparedTerm) {
-      var to = this.binarySearchUpper(preparedTerm, 0, _suffixes.size());
-      return to - suffixIndex;
-    }
-    return 0;
+    var region = this.lookup(term);
+    return region[1] - region[0];
   }  
   
   this.find = function(term) {
-    var preparedTerm = this.comparator(term);
-    if (!this.prepare(preparedTerm)) 
-      return new Hits(term, 0, 0, _fulltextReader, this); 
-    var suffixIndex = this.binarySearch(preparedTerm, 0, _suffixes.size());
-    var offset = this.indexToOffset(suffixIndex);
-    if (this.comparator(_fulltextReader.getData(offset, term.length)) == preparedTerm) {
-      var to = this.binarySearchUpper(preparedTerm, 0, _suffixes.size());
-      return new Hits(term, suffixIndex, to, _fulltextReader, this);
-    } else {
-      return new Hits(term, 0, 0, _fulltextReader, this);
-    }
+    var region = this.lookup(term);
+    return new Hits(term, region[0], region[1], _fulltextReader, this);
   } 
 
+  this.lookup = function(term) {
+    var preparedTerm = this.comparator(term);
+    var region = _lookups[preparedTerm];
+    if (region) return region;
+    if (!this.prepare(preparedTerm)) {
+      _lookups[preparedTerm] = [0, 0]
+      return [0, 0]; 
+    }
+    var from = this.binarySearch(preparedTerm, 0, _suffixes.size(), false);
+    var offset = this.indexToOffset(from);
+    var data = _fulltextReader.getData(offset, term.length);
+    if (this.comparator(data) == preparedTerm) {
+      var to = this.binarySearch(preparedTerm, 0, _suffixes.size(), true);
+      _lookups[preparedTerm] = [from, to]
+      return [from, to];
+    }
+    _lookups[preparedTerm] = [0, 0]
+    return [0, 0];
+  }   
+  
   this.indexToOffset = function(suffixIndex) {
     return _suffixes.offset(suffixIndex);
   }
@@ -48,8 +52,8 @@ function SuffixArrayReader(fulltextReader, shardSize, baseURL){
   }
   
   this.prepare = function(term) {
-    var re = new RegExp("(\0|\s|\n)", "g");
-    var shard = term.replace(re, '');
+    var re = new RegExp("(\\0|\\s|\\n)", "g");
+    var shard = term.replace(re, "");
     shard = shard.slice(0, _shardSize);
     if (shard.length < _shardSize) throw new Error("Search term must be at least " + _shardSize + " characters");
     var url = _baseURL + '/' + shard;
@@ -95,7 +99,8 @@ function SuffixArrayReader(fulltextReader, shardSize, baseURL){
     if (_blockSize != 0) {
       var index = 0;
       for (var i=0; i<_totalSuffixes; i+= _blockSize) {
-        _inlineSuffixes[index++] = _reader.blockToString(_reader.read(_inlineSuffixSize));
+        var suffix = _reader.blockToString(_reader.read(_inlineSuffixSize));
+        _inlineSuffixes[index++] = suffix;
       }
     }
     
@@ -107,15 +112,15 @@ function SuffixArrayReader(fulltextReader, shardSize, baseURL){
     _suffixes = new Suffixes(_reader, _totalSuffixes);        
   }
   
-  this.binarySearch = function(term, from, to) {
-    var region = this.binarySearchInlineSuffixes(term, from, to);
+  this.binarySearch = function(term, from, to, upper) {
+    var region = this.binarySearchInlineSuffixes(term, from, to, upper);
     from = region[0];
     to = region[1];
     var tsize = term.length;
     while (from < to) {
       var middle = Math.floor((from + to) / 2);
       var pivot = this.comparator(_fulltextReader.getData(_suffixes.offset(middle), tsize));
-      if (term <= pivot) {
+      if ((!upper && term <= pivot) || (upper && term < pivot)) {
         to = middle;
       } else {
         from = middle + 1;
@@ -124,24 +129,7 @@ function SuffixArrayReader(fulltextReader, shardSize, baseURL){
     return from;          
   }
   
-  this.binarySearchUpper = function(term, from, to) {
-    var region = this.binarySearchInlineSuffixesUpper(term, from, to);
-    from = region[0];
-    to = region[1];
-    var tsize = term.length;
-    while (from < to) {
-      var middle = Math.floor((from + to) / 2);
-      var pivot = this.comparator(_fulltextReader.getData(_suffixes.offset(middle), tsize));
-      if (term < pivot) {
-        to = middle;
-      } else {
-        from = middle + 1;
-      }
-    }
-    return from;          
-  }
-  
-  this.binarySearchInlineSuffixes = function(term, from, to) {
+  this.binarySearchInlineSuffixes = function(term, from, to, upper) {
     if (_blockSize == 0) return [from, to];
     var tsize = term.length;
     while (to - from > _blockSize) {
@@ -150,7 +138,7 @@ function SuffixArrayReader(fulltextReader, shardSize, baseURL){
       var mod = middle % _blockSize;
       var pivot = this.comparator(_inlineSuffixes[quotient]);      
       if (tsize <= _inlineSuffixSize) {
-        if (term <= pivot) { 
+        if ((!upper && term <= pivot) || (upper && term < pivot.slice(0, tsize))) { 
           to = middle;
         } else {
           from = middle + 1;
@@ -164,7 +152,7 @@ function SuffixArrayReader(fulltextReader, shardSize, baseURL){
           from = middle + 1;
         } else {
           pivot = this.comparator(_fulltextReader.getData(_suffixes.offset(middle), tsize));
-          if (term <= pivot) {
+          if ((!upper && term <= pivot) || (upper && term < pivot)) {
             to = middle;
           } else {
             from = middle + 1;
@@ -174,38 +162,4 @@ function SuffixArrayReader(fulltextReader, shardSize, baseURL){
     }     
     return [from, to];
   }
-  
-  this.binarySearchInlineSuffixesUpper = function(term, from, to) {
-    if (_blockSize == 0) return [from, to];
-    var tsize = term.length;
-    while (to - from > _blockSize) {
-      var middle = Math.floor((from + to) / 2);
-      var quotient = Math.floor(middle / _blockSize);
-      var mod = middle % _blockSize;
-      var pivot = this.comparator(_inlineSuffixes[quotient]);      
-      if (tsize <= _inlineSuffixSize) {
-        if (term < pivot.slice(0, tsize)) { 
-          to = middle;
-        } else {
-          from = middle + 1;
-        }
-      } else if (term.slice(0, _inlineSuffixSize) < pivot) {
-        to = middle;
-      } else {
-        var lastChar = pivot.charCodeAt(pivot.length-1);
-        pivot = pivot.slice(0, pivot.length-1) + String.fromCharCode(lastChar + 1);
-        if (term > pivot) {
-          from = middle + 1;
-        } else {
-          pivot = this.comparator(_fulltextReader.getData(_suffixes.offset(middle), tsize));
-          if (term < pivot) {
-            to = middle;
-          } else {
-            from = middle + 1;
-          }
-        }  
-      }    
-    }     
-    return [from, to];
-  }    
 }
