@@ -1,14 +1,45 @@
 <html>
   <head>
-    <script type="text/javascript" src="javascripts/jquery.js"></script>
+    <script type="text/javascript" src="/javascripts/jquery.js"></script>
+    <script type="text/javascript" src="/javascripts/bin_file_reader.js"></script>
+    <script type="text/javascript" src="/javascripts/chunked_file_reader.js"></script>
+    <script type="text/javascript" src="/javascripts/fulltext_reader.js"></script>
+    <script type="text/javascript" src="/javascripts/hits.js"></script>
+    <script type="text/javascript" src="/javascripts/suffixes.js"></script>
+    <script type="text/javascript" src="/javascripts/suffix_array_reader.js"></script>
     <script type="text/javascript">
-      function search() {
-        alert("Find " + $('#search').value);
-      }
+      // These build caches so you don't want to reset them every search
+      // If you were clever you would put this into a persistent frame
+      var shardSize = 4;
+      var fulltextReader = new FulltextReader("/index/fates/contacts-0000000/fulltext");
+      var suffixArrayReader = new SuffixArrayReader(fulltextReader, shardSize, "/index/fates/contacts-0000000/suffixes");
+
+      function fulltext_search() {      
+        try {
+          var q = $('#search').val();
+          var count = suffixArrayReader.count(q);
+          alert("Total hits: " + count);
+          var hits = suffixArrayReader.find(q);
+          if (hits && hits.size() > 0) {
+            var text = "Showing " + ((hits.size() <= 10) ? 'all' : 'top 10') + " matches\n";
+            var total = hits.size() > 10 ? 10 : hits.size();
+            for (var i=0; i<total; i++) {
+              recordData = fulltextReader.hitToRecordData(hits.get(i));
+              primaryKey = fulltextReader.getPrimaryKey(recordData);
+              fields = fulltextReader.getFields(recordData);
+              text += "\n" + primaryKey + ": " + fields.join(' ');
+            }
+            alert(text);          
+          }
+        } catch(ex) {
+          alert(ex + "\n" + ex.stack);
+        }          
+      }      
+      
     </script>
   </head>
   <body>
-    <form onsubmit="search">
+    <form name="search_form" onsubmit="try { fulltext_search(); } finally { return false; }">
       <label for="search">Search</label>
       <input name="search" id="search" type="text" />
       <input type="submit" value="Search"/>
