@@ -32,12 +32,14 @@ function SuffixArrayReader(fulltextReader, shardSize, baseURL){
       return [0, 0]; 
     }
     var from = this.binarySearch(preparedTerm, 0, _suffixes.size(), false);
-    var offset = this.indexToOffset(from);
-    var data = _fulltextReader.getData(offset, term.length);
-    if (this.comparator(data) == preparedTerm) {
-      var to = this.binarySearch(preparedTerm, 0, _suffixes.size(), true);
-      _lookups[preparedTerm] = [from, to]
-      return [from, to];
+    if (from < _suffixes.size()) {
+      var offset = this.indexToOffset(from);
+      var data = _fulltextReader.getData(offset, term.length);
+      if (this.comparator(data) == preparedTerm) {
+        var to = this.binarySearch(preparedTerm, 0, _suffixes.size(), true);
+        _lookups[preparedTerm] = [from, to]
+        return [from, to];
+      }
     }
     _lookups[preparedTerm] = [0, 0]
     return [0, 0];
